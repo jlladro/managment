@@ -58,15 +58,13 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
 
   const syncWithSupabase = useCallback(async () => {
     try {
-      const [{ data: projects, error: pErr }, { data: materials, error: mErr }, { data: workHours, error: wErr }, { data: users, error: uErr }] = await Promise.all([
+      const [{ data: projects }, { data: materials }, { data: workHours }, { data: users }] = await Promise.all([
         supabase.from('projects').select('*'),
         supabase.from('materials').select('*'),
         supabase.from('work_hours').select('*'),
         supabase.from('users').select('*')
       ]);
       
-      if (pErr) console.error("Projekte laden fehlgeschlagen:", pErr);
-
       if (projects) {
         setDb(prev => ({
           ...prev,
@@ -85,7 +83,7 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
         }));
       }
     } catch (e) {
-      console.warn("Offline Modus aktiv");
+      console.warn("Offline");
     } finally {
       setReady(true);
     }
@@ -106,35 +104,27 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
   const addProject = useCallback(async (data: Omit<Project, "id">) => {
     const project = { ...data, id: generateId("proj") };
     update(prev => ({ ...prev, projects: [...prev.projects, project] }));
-    const { error } = await supabase.from('projects').insert({
+    await supabase.from('projects').insert({
       id: project.id, name: project.name, address: project.address, status: project.status, description: project.description
     });
-    if (error) {
-       alert("DATENBANK-FEHLER Baustelle: " + error.message);
-    }
     return project;
   }, [update]);
 
   const addMaterial = useCallback(async (data: Omit<Material, "id">) => {
     const material = { ...data, id: generateId("mat") };
     update(prev => ({ ...prev, materials: [...prev.materials, material] }));
-    const { error } = await supabase.from('materials').insert({
+    await supabase.from('materials').insert({
       id: material.id, project_id: material.projectId, name: material.name, quantity: material.quantity, unit: material.unit, minimum: material.minimum
     });
-    if (error) {
-       alert("DATENBANK-FEHLER Material: " + error.message);
-    }
     return material;
   }, [update]);
 
-  // Rest der Funktionen bleibt gleich...
   const addWorkHour = useCallback(async (data: Omit<WorkHour, "id">) => {
     const entry = { ...data, id: generateId("wh") };
     update(prev => ({ ...prev, work_hours: [entry, ...prev.work_hours] }));
-    const { error } = await supabase.from('work_hours').insert({
+    await supabase.from('work_hours').insert({
       id: entry.id, project_id: data.projectId, employee_name: data.employeeName, hours: data.hours, date: data.date.toISOString().split('T')[0], start_time: data.startTime, end_time: data.endTime, pause: data.pause
     });
-    if(error) alert("Arbeitszeit Fehler: " + error.message);
     return entry;
   }, [update]);
 
@@ -166,11 +156,15 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
      await supabase.from('users').delete().eq('id', id);
   };
 
+  const updateProject = async () => {};
+  const updateMaterial = async () => {};
+  const updateUser = async () => {};
+
   return (
     <DemoDbContext.Provider value={{
-      ready, db, reset, addProject, deleteProject, updateProject: async()=>{},
-      addMaterial, deleteMaterial, updateMaterialQuantity, updateMaterial: async()=>{},
-      addWorkHour, deleteWorkHour, addUser, deleteUser, updateUser: async()=>{},
+      ready, db, reset, addProject, deleteProject, updateProject,
+      addMaterial, deleteMaterial, updateMaterialQuantity, updateMaterial,
+      addWorkHour, deleteWorkHour, addUser, deleteUser, updateUser,
       addMessage: (d:any)=>d, addNotification: ()=>{}
     }}>
       {children}
