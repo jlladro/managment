@@ -53,36 +53,41 @@ interface DemoDbContextType {
 const DemoDbContext = createContext<DemoDbContextType | null>(null);
 
 export function DemoDbProvider({ children }: { children: ReactNode }) {
-  // WICHTIG: Wir starten SOFORT mit den lokalen Daten (damit nichts hängen kann)
   const [db, setDb] = useState<DemoDatabase>(loadDemoDb());
-  const [ready, setReady] = useState(true); // Sofort bereit! Kein Laderädchen mehr.
+  const [ready, setReady] = useState(false);
 
   const syncWithSupabase = useCallback(async () => {
     try {
-      const { data: projects } = await supabase.from('projects').select('*');
-      const { data: materials } = await supabase.from('materials').select('*');
-      const { data: workHours } = await supabase.from('work_hours').select('*');
-      const { data: users } = await supabase.from('users').select('*');
+      const [{ data: projects, error: pErr }, { data: materials, error: mErr }, { data: workHours, error: wErr }, { data: users, error: uErr }] = await Promise.all([
+        supabase.from('projects').select('*'),
+        supabase.from('materials').select('*'),
+        supabase.from('work_hours').select('*'),
+        supabase.from('users').select('*')
+      ]);
       
-      if (!projects) return; // Falls keine Verbindung, bleiben wir bei den lokalen Daten
+      if (pErr) console.error("Projekte laden fehlgeschlagen:", pErr);
 
-      setDb(prev => ({
-        ...prev,
-        projects: projects.map(p => ({
-          id: p.id, name: p.name, address: p.address, status: p.status, description: p.description
-        })),
-        materials: (materials || []).map(m => ({
-          id: m.id, projectId: m.project_id, name: m.name, quantity: Number(m.quantity), unit: m.unit, minimum: Number(m.minimum)
-        })),
-        work_hours: (workHours || []).map(wh => ({
-          id: wh.id, projectId: wh.project_id, employeeName: wh.employee_name, hours: Number(wh.hours), date: new Date(wh.date), startTime: wh.start_time, endTime: wh.end_time, pause: wh.pause
-        })),
-        users: (users || []).map(u => ({
-          id: u.id, name: u.name, active: u.active, role: u.role
-        }))
-      }));
+      if (projects) {
+        setDb(prev => ({
+          ...prev,
+          projects: projects.map(p => ({
+            id: p.id, name: p.name, address: p.address, status: p.status, description: p.description
+          })),
+          materials: (materials || []).map(m => ({
+            id: m.id, projectId: m.project_id, name: m.name, quantity: Number(m.quantity), unit: m.unit, minimum: Number(m.minimum)
+          })),
+          work_hours: (workHours || []).map(wh => ({
+            id: wh.id, projectId: wh.project_id, employeeName: wh.employee_name, hours: Number(wh.hours), date: new Date(wh.date), startTime: wh.start_time, endTime: wh.end_time, pause: wh.pause
+          })),
+          users: (users || []).map(u => ({
+            id: u.id, name: u.name, active: u.active, role: u.role
+          }))
+        }));
+      }
     } catch (e) {
-      console.warn("Supabase Sync fehlgeschlagen, arbeite offline weiter.");
+      console.warn("Offline Modus aktiv");
+    } finally {
+      setReady(true);
     }
   }, []);
 
@@ -93,7 +98,7 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
   const update = useCallback((updater: (prev: DemoDatabase) => DemoDatabase) => {
     setDb((prev) => {
       const next = updater(prev);
-      saveDemoDb(next); // Backup im Browser
+      saveDemoDb(next);
       return next;
     });
   }, []);
@@ -101,27 +106,35 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
   const addProject = useCallback(async (data: Omit<Project, "id">) => {
     const project = { ...data, id: generateId("proj") };
     update(prev => ({ ...prev, projects: [...prev.projects, project] }));
-    await supabase.from('projects').insert({
+    const { error } = await supabase.from('projects').insert({
       id: project.id, name: project.name, address: project.address, status: project.status, description: project.description
     });
+    if (error) {
+       alert("DATENBANK-FEHLER Baustelle: " + error.message);
+    }
     return project;
   }, [update]);
 
   const addMaterial = useCallback(async (data: Omit<Material, "id">) => {
     const material = { ...data, id: generateId("mat") };
     update(prev => ({ ...prev, materials: [...prev.materials, material] }));
-    await supabase.from('materials').insert({
+    const { error } = await supabase.from('materials').insert({
       id: material.id, project_id: material.projectId, name: material.name, quantity: material.quantity, unit: material.unit, minimum: material.minimum
     });
+    if (error) {
+       alert("DATENBANK-FEHLER Material: " + error.message);
+    }
     return material;
   }, [update]);
 
+  // Rest der Funktionen bleibt gleich...
   const addWorkHour = useCallback(async (data: Omit<WorkHour, "id">) => {
     const entry = { ...data, id: generateId("wh") };
     update(prev => ({ ...prev, work_hours: [entry, ...prev.work_hours] }));
-    await supabase.from('work_hours').insert({
+    const { error } = await supabase.from('work_hours').insert({
       id: entry.id, project_id: data.projectId, employee_name: data.employeeName, hours: data.hours, date: data.date.toISOString().split('T')[0], start_time: data.startTime, end_time: data.endTime, pause: data.pause
     });
+    if(error) alert("Arbeitszeit Fehler: " + error.message);
     return entry;
   }, [update]);
 
@@ -138,12 +151,10 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
     update(prev => ({ ...prev, materials: prev.materials.map(m => m.id === id ? {...m, quantity} : m) }));
     await supabase.from('materials').update({ quantity }).eq('id', id);
   };
-
   const deleteWorkHour = async (id:string) => {
     update(prev => ({ ...prev, work_hours: prev.work_hours.filter(wh => wh.id !== id) }));
     await supabase.from('work_hours').delete().eq('id', id);
   };
-
   const addUser = async (data:any) => {
     const u = {...data, id: generateId("u")};
     update(prev => ({...prev, users: [...prev.users, u]}));
@@ -157,7 +168,7 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
 
   return (
     <DemoDbContext.Provider value={{
-      ready: true, db, reset, addProject, deleteProject, updateProject: async()=>{},
+      ready, db, reset, addProject, deleteProject, updateProject: async()=>{},
       addMaterial, deleteMaterial, updateMaterialQuantity, updateMaterial: async()=>{},
       addWorkHour, deleteWorkHour, addUser, deleteUser, updateUser: async()=>{},
       addMessage: (d:any)=>d, addNotification: ()=>{}
