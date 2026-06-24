@@ -250,6 +250,25 @@ function InvoiceSection({ projectId, employeeName }: { projectId: string; employ
     }
   };
 
+  const compressImage = async (file: File): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        const max = 1600; // Max Breite/Höhe
+        if (width > height && width > max) { height *= max / width; width = max; }
+        else if (height > max) { width *= max / height; height = max; }
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => resolve(blob!), "image/jpeg", 0.7); // 70% Qualität
+      };
+    });
+  };
+
   const handleSend = async () => {
     if (!title.trim() || saving) return;
     setSaving(true);
@@ -257,9 +276,10 @@ function InvoiceSection({ projectId, employeeName }: { projectId: string; employ
     try {
       let imageUrl = "";
       if (image) {
+        const compressedBlob = await compressImage(image);
         const formData = new FormData();
-        formData.append('file', image);
-        formData.append('path', `inv_${Date.now()}_${image.name.replace(/\s/g, '_')}`);
+        formData.append('file', compressedBlob, 'image.jpg');
+        formData.append('path', `inv_${Date.now()}.jpg`);
         
         const uploadRes = await fetch('/api/upload', {
           method: 'POST',
