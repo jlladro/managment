@@ -138,7 +138,21 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
     const wh = { ...data, id: generateId("wh") };
     updateLocal(prev => ({ ...prev, work_hours: [wh, ...prev.work_hours] }));
     const localDate = wh.date.getFullYear() + '-' + String(wh.date.getMonth() + 1).padStart(2, '0') + '-' + String(wh.date.getDate()).padStart(2, '0');
-    const res = await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'work_hours', data: { id: wh.id, project_id: data.projectId, employee_name: data.employeeName, hours: data.hours, date: localDate, start_time: data.startTime, end_time: data.endTime, pause: data.pause, report: data.report || "" } }) });
+    
+    const payload: any = { 
+      id: wh.id, 
+      project_id: data.projectId, 
+      employee_name: data.employeeName, 
+      hours: data.hours, 
+      date: localDate 
+    };
+    
+    if (data.startTime) payload.start_time = data.startTime;
+    if (data.endTime) payload.end_time = data.endTime;
+    if (data.pause) payload.pause = data.pause;
+    if (data.report) payload.report = data.report;
+
+    const res = await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'work_hours', data: payload }) });
     if (!res.ok) {
       const err = await res.json();
       alert("Fehler beim Speichern der Stunden: " + (err.error || res.statusText));
