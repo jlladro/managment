@@ -61,11 +61,11 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
             id: m.id, projectId: m.project_id, name: m.name, quantity: Number(m.quantity), unit: m.unit, minimum: Number(m.minimum)
           })),
           work_hours: (data.workHours || []).map((wh:any) => ({
-            id: wh.id, projectId: wh.project_id, employeeName: wh.employee_name, hours: Number(wh.hours), date: new Date(wh.date), startTime: wh.start_time, endTime: wh.end_time, pause: wh.pause, report: wh.report || ""
+            id: wh.id, projectId: wh.project_id, employeeName: wh.employee_name, hours: Number(wh.hours || 0), date: new Date(wh.date), startTime: wh.start_time, endTime: wh.end_time || wh.endTime, pause: Number(wh.pause || 0), report: wh.report || ""
           })),
           users: data.users || [],
           messages: (data.messages || []).map((m:any) => ({
-            id: m.id, title: m.title, body: m.body, targetType: m.target_type, targetProjectIds: m.target_project_ids || [], createdAt: new Date(m.created_at)
+            id: m.id, title: m.title, body: m.body, targetType: m.target_type || m.targetType, targetProjectIds: m.target_project_ids || m.targetProjectIds || [], createdAt: new Date(m.created_at || m.createdAt || Date.now())
           }))
         }));
       }

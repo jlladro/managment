@@ -56,7 +56,7 @@ export default function ReportsPage() {
   const tagesberichte = useMemo(() => {
     return filteredHours
       .filter(wh => wh.report && wh.report.trim() !== "")
-      .sort((a, b) => b.date.getTime() - a.date.getTime());
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [filteredHours]);
 
   const toggleReport = (id: string) => {

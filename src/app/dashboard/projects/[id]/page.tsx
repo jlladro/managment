@@ -147,7 +147,7 @@ function EmployeesTab({ projectId }: { projectId: string }) {
 
 function HoursTab({ projectId }: { projectId: string }) {
   const demoDb = useDemoDb();
-  const workHours = [...demoDb.db.work_hours.filter((wh) => wh.projectId === projectId)].sort((a,b) => b.date.getTime() - a.date.getTime());
+  const workHours = [...demoDb.db.work_hours.filter((wh) => wh.projectId === projectId)].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   if (workHours.length === 0) return <div className="text-center py-20 text-slate-500">Noch keine Stunden gebucht</div>;
 

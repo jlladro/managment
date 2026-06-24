@@ -250,6 +250,34 @@ function HoursSection({ projectId, employeeName }: { projectId: string; employee
             {saved ? "✓ Gespeichert" : `Buchen (${calculateHours()}h)`}
           </button>
         </div>
+
+        <div className="mt-6 space-y-3">
+          {workHours.length > 0 && <p className="text-slate-500 text-[10px] uppercase font-bold ml-1">Letzte Buchungen</p>}
+          {[...workHours].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((wh) => (
+            <div key={wh.id} className="bg-[#0F3460] rounded-2xl p-4 border border-white/5">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-white font-bold text-sm">
+                    {format(new Date(wh.date), "dd.MM.yyyy")}
+                  </p>
+                  {wh.startTime && (
+                    <p className="text-slate-500 text-[10px] mt-1">
+                      {wh.startTime} - {wh.endTime} ({wh.pause} min Pause)
+                    </p>
+                  )}
+                  {wh.report && (
+                    <p className="text-slate-300 text-xs mt-2 italic bg-black/20 p-2 rounded-lg border-l-2 border-orange-500">
+                      {wh.report}
+                    </p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <p className="text-orange-400 font-bold text-lg">{wh.hours}h</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

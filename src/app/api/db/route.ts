@@ -8,13 +8,14 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 
 export async function GET() {
   try {
-    const [{ data: projects }, { data: materials }, { data: workHours }, { data: users }] = await Promise.all([
+    const [{ data: projects }, { data: materials }, { data: workHours }, { data: users }, { data: messages }] = await Promise.all([
       supabase.from('projects').select('*'),
       supabase.from('materials').select('*'),
       supabase.from('work_hours').select('*'),
-      supabase.from('users').select('*')
+      supabase.from('users').select('*'),
+      supabase.from('messages').select('*')
     ]);
-    return NextResponse.json({ projects, materials, workHours, users });
+    return NextResponse.json({ projects, materials, workHours, users, messages });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
@@ -23,20 +24,11 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const { table, data } = await req.json();
-    // Nutze upsert damit wir sowohl neue Zeilen erstellen als auch bestehende updaten können
     const { error } = await supabase.from(table).upsert(data);
-    if (error) throw error;
-    return NextResponse.json({ success: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
-  }
-}
-
-export async function PATCH(req: Request) {
-  try {
-    const { table, id, data } = await req.json();
-    const { error } = await supabase.from(table).update(data).eq('id', id);
-    if (error) throw error;
+    if (error) {
+       console.error("Supabase Error:", error);
+       throw error;
+    }
     return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
