@@ -5,13 +5,12 @@ import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { de } from "date-fns/locale";
 import { useDemoDb } from "@/context/DemoDbContext";
 import { LoadingSpinner, EmptyState } from "@/components/ui";
-import { Printer, Calendar, FileText, ChevronDown, ChevronUp, BarChart3 } from "lucide-react";
+import { Printer, Calendar, FileText, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function ReportsPage() {
   const demoDb = useDemoDb();
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [expandedReports, setExpandedReports] = useState<string[]>([]);
-  const [showStats, setShowStats] = useState(false);
 
   const workHours = demoDb.db.work_hours || [];
   const projects = demoDb.db.projects || [];
@@ -29,12 +28,15 @@ export default function ReportsPage() {
   }, [selectedMonth]);
 
   const filteredHours = useMemo(() => {
-    return workHours.filter(wh => 
-      isWithinInterval(new Date(wh.date), monthInterval)
-    );
+    return workHours.filter(wh => {
+      try {
+        const d = new Date(wh.date);
+        return isWithinInterval(d, monthInterval);
+      } catch { return false; }
+    });
   }, [workHours, monthInterval]);
 
-  // Gruppierung für Statistiken (Optional einblendbar)
+  // Gruppierung für Statistiken (nur klein am Rand/unten)
   const byEmployee = useMemo(() => {
     const map: Record<string, number> = {};
     filteredHours.forEach(wh => {
@@ -43,16 +45,7 @@ export default function ReportsPage() {
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [filteredHours]);
 
-  const byProject = useMemo(() => {
-    const map: Record<string, number> = {};
-    filteredHours.forEach(wh => {
-      const name = projectMap[wh.projectId] || "Gelöscht";
-      map[name] = (map[name] || 0) + wh.hours;
-    });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]);
-  }, [filteredHours, projectMap]);
-
-  // Tagesberichte filtern (HAUPTFOKUS)
+  // Tagesberichte (HAUPTFOKUS)
   const tagesberichte = useMemo(() => {
     return filteredHours
       .filter(wh => wh.report && wh.report.trim() !== "")
@@ -68,115 +61,82 @@ export default function ReportsPage() {
   if (loading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-5xl mx-auto space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Tagesberichte</h1>
-          <p className="text-slate-400 mt-1">Überblick über die täglichen Arbeiten</p>
+          <h1 className="text-3xl font-bold text-white">Tagesberichte</h1>
+          <p className="text-slate-400 mt-1">Alle Einträge deiner Mitarbeiter</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setShowStats(!showStats)}
-            className={`p-2 rounded-xl border transition-all ${showStats ? "bg-orange-500 border-orange-400 text-white" : "bg-slate-800 border-slate-700 text-slate-400"}`}
-            title="Statistiken ein/ausblenden"
-          >
-            <BarChart3 className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-3 bg-slate-800 p-2 rounded-xl border border-slate-700">
-            <Calendar className="w-4 h-4 text-orange-500 ml-2" />
-            <input type="month" className="bg-transparent text-white border-none focus:ring-0 text-sm" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} />
-          </div>
+        <div className="flex items-center gap-3 bg-slate-800 p-2 rounded-2xl border border-slate-700 shadow-xl">
+          <Calendar className="w-5 h-5 text-orange-500 ml-2" />
+          <input 
+            type="month" 
+            className="bg-transparent text-white border-none focus:ring-0 text-sm font-bold" 
+            value={selectedMonth} 
+            onChange={(e) => setSelectedMonth(e.target.value)} 
+          />
         </div>
       </div>
 
-      {showStats && filteredHours.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="bg-slate-900/50 rounded-2xl border border-slate-800 overflow-hidden">
-            <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
-              <h2 className="text-white text-xs font-bold uppercase tracking-wider">Stunden pro Mitarbeiter</h2>
-            </div>
-            <table className="w-full text-left text-sm">
-              <tbody className="divide-y divide-white/5">
-                {byEmployee.map(([name, hours]) => (
-                  <tr key={name} className="text-white"><td className="px-6 py-3">{name}</td><td className="px-6 py-3 text-right text-orange-400 font-bold">{hours}h</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="bg-slate-900/50 rounded-2xl border border-slate-800 overflow-hidden">
-            <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
-              <h2 className="text-white text-xs font-bold uppercase tracking-wider">Stunden pro Baustelle</h2>
-            </div>
-            <table className="w-full text-left text-sm">
-              <tbody className="divide-y divide-white/5">
-                {byProject.map(([name, hours]) => (
-                  <tr key={name} className="text-white"><td className="px-6 py-3">{name}</td><td className="px-6 py-3 text-right text-blue-400 font-bold">{hours}h</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <div className="bg-slate-900/50 rounded-3xl border border-slate-800 overflow-hidden shadow-2xl">
-        <div className="p-6 border-b border-white/5 flex items-center justify-between bg-slate-800/30">
+      {/* Hauptbereich: Tagesberichte */}
+      <div className="bg-slate-900/40 rounded-[32px] border border-slate-800 overflow-hidden shadow-2xl">
+        <div className="p-6 border-b border-white/5 bg-slate-800/30 flex items-center justify-between">
           <div className="flex items-center gap-3">
-             <div className="w-10 h-10 bg-orange-500/20 rounded-full flex items-center justify-center">
-                <FileText className="w-5 h-5 text-orange-400" />
-             </div>
-             <div>
-                <h2 className="text-white font-bold">Arbeitsberichte</h2>
-                <p className="text-xs text-slate-500">{format(monthInterval.start, "MMMM yyyy", { locale: de })}</p>
-             </div>
+            <FileText className="w-6 h-6 text-orange-400" />
+            <h2 className="text-xl font-bold text-white">Eingegangene Berichte</h2>
           </div>
-          <span className="text-xs font-bold bg-orange-500/10 text-orange-400 px-3 py-1 rounded-full">{tagesberichte.length} Berichte</span>
+          <span className="text-xs font-bold bg-orange-500/10 text-orange-400 px-4 py-1.5 rounded-full border border-orange-500/20">
+            {tagesberichte.length} Berichte gefunden
+          </span>
         </div>
-        
+
         {tagesberichte.length === 0 ? (
-          <div className="p-20 text-center">
-            <div className="inline-flex w-16 h-16 bg-slate-800 rounded-full items-center justify-center mb-4">
-              <FileText className="w-8 h-8 text-slate-600" />
+          <div className="p-24 text-center">
+            <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FileText className="w-10 h-10 text-slate-700" />
             </div>
-            <p className="text-slate-500">Keine Tagesberichte für diesen Zeitraum gefunden</p>
+            <p className="text-slate-500 font-medium">Keine Berichte für diesen Monat vorhanden.</p>
           </div>
         ) : (
           <div className="divide-y divide-white/5">
             {tagesberichte.map((wh) => (
-              <div key={wh.id} className="group">
+              <div key={wh.id} className="group transition-all hover:bg-white/[0.02]">
                 <button 
                   onClick={() => toggleReport(wh.id)}
-                  className="w-full p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-white/5 transition-all text-left"
+                  className="w-full p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 text-left"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white font-bold border border-slate-700 group-hover:border-orange-500/50 transition-colors">
+                  <div className="flex items-center gap-5">
+                    <div className="w-14 h-14 bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl flex items-center justify-center text-white font-black text-xl border border-slate-600 shadow-lg group-hover:border-orange-500/50 transition-all">
                       {wh.employeeName[0]?.toUpperCase()}
                     </div>
                     <div>
-                      <h3 className="text-white font-bold">{wh.employeeName}</h3>
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-tight">{projectMap[wh.projectId] || "Baustelle"}</p>
+                      <h3 className="text-white font-bold text-lg">{wh.employeeName}</h3>
+                      <div className="flex items-center gap-2 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                         <span className="text-orange-500/80">{projectMap[wh.projectId] || "Baustelle"}</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto">
+                  <div className="flex items-center justify-between md:justify-end gap-8 w-full md:w-auto">
                     <div className="text-right">
-                      <p className="text-white font-bold text-sm">{format(wh.date, "EEEE, dd.MM.", { locale: de })}</p>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase">{wh.hours} Arbeitsstunden</p>
+                      <p className="text-white font-bold">{format(new Date(wh.date), "EEEE, dd. MMMM", { locale: de })}</p>
+                      <p className="text-xs text-slate-500 font-black uppercase tracking-tighter">{wh.hours}h gearbeitet</p>
                     </div>
-                    <div className={`p-2 rounded-lg bg-slate-800 border border-slate-700 group-hover:border-orange-500/30 transition-all ${expandedReports.includes(wh.id) ? "rotate-180 bg-orange-500/10 border-orange-500/30 text-orange-400" : "text-slate-500"}`}>
-                      <ChevronDown className="w-4 h-4" />
+                    <div className={`w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center border border-slate-700 transition-all ${expandedReports.includes(wh.id) ? "rotate-180 bg-orange-500 border-orange-400 text-white shadow-lg shadow-orange-500/20" : "text-slate-500"}`}>
+                      <ChevronDown className="w-5 h-5" />
                     </div>
                   </div>
                 </button>
                 {expandedReports.includes(wh.id) && (
-                  <div className="px-6 pb-6 animate-in fade-in zoom-in-95 duration-200">
-                    <div className="p-6 bg-slate-950/50 rounded-2xl border border-white/5 relative overflow-hidden">
-                      <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
-                      <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">
-                        {wh.report}
+                  <div className="px-6 pb-8 animate-in slide-in-from-top-2 duration-300">
+                    <div className="p-8 bg-slate-950/80 rounded-[24px] border border-white/5 relative overflow-hidden shadow-inner">
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.5)]" />
+                      <p className="text-slate-200 text-lg leading-relaxed whitespace-pre-wrap font-medium">
+                        "{wh.report}"
                       </p>
-                      <div className="mt-4 pt-4 border-t border-white/5 flex gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                         {wh.startTime && <span>Beginn: {wh.startTime}</span>}
-                         {wh.endTime && <span>Ende: {wh.endTime}</span>}
-                         {wh.pause && <span>Pause: {wh.pause}min</span>}
+                      <div className="mt-6 pt-6 border-t border-white/5 flex flex-wrap gap-6 text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                         <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500"/> Beginn: {wh.startTime}</span>
+                         <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-red-500"/> Ende: {wh.endTime}</span>
+                         <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500"/> Pause: {wh.pause} min</span>
                       </div>
                     </div>
                   </div>
@@ -187,10 +147,24 @@ export default function ReportsPage() {
         )}
       </div>
 
-      <div className="flex justify-end pt-4">
-        <button onClick={() => window.print()} className="flex items-center gap-2 px-6 py-3 bg-slate-800 text-white rounded-xl font-bold border border-slate-700 hover:bg-slate-750 transition-colors">
-          <Printer className="w-4 h-4" /> Bericht drucken
-        </button>
+      {/* Zusammenfassung unten */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+         <div className="bg-slate-900/30 rounded-3xl border border-slate-800 p-6">
+            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Stunden / Mitarbeiter</h3>
+            <div className="space-y-2">
+               {byEmployee.map(([name, hours]) => (
+                 <div key={name} className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                    <span className="text-white font-bold">{name}</span>
+                    <span className="text-orange-400 font-black">{hours}h</span>
+                 </div>
+               ))}
+            </div>
+         </div>
+         <div className="flex items-center justify-center">
+            <button onClick={() => window.print()} className="w-full md:w-auto px-10 py-5 bg-white text-black rounded-2xl font-black text-lg hover:bg-orange-500 hover:text-white transition-all shadow-xl active:scale-95">
+                BERICHT DRUCKEN
+            </button>
+         </div>
       </div>
     </div>
   );

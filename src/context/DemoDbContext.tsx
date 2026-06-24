@@ -137,7 +137,8 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
   const addWorkHour = async (data: Omit<WorkHour, "id">) => {
     const wh = { ...data, id: generateId("wh") };
     updateLocal(prev => ({ ...prev, work_hours: [wh, ...prev.work_hours] }));
-    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'work_hours', data: { id: wh.id, project_id: data.projectId, employee_name: data.employeeName, hours: data.hours, date: data.date.toISOString().split('T')[0], start_time: data.startTime, end_time: data.endTime, pause: data.pause, report: (data as any).report || "" } }) });
+    const localDate = wh.date.getFullYear() + '-' + String(wh.date.getMonth() + 1).padStart(2, '0') + '-' + String(wh.date.getDate()).padStart(2, '0');
+    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'work_hours', data: { id: wh.id, project_id: data.projectId, employee_name: data.employeeName, hours: data.hours, date: localDate, start_time: data.startTime, end_time: data.endTime, pause: data.pause, report: (data as any).report || "" } }) });
     return wh;
   };
 
