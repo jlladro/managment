@@ -5,11 +5,12 @@ import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { de } from "date-fns/locale";
 import { useDemoDb } from "@/context/DemoDbContext";
 import { LoadingSpinner, EmptyState } from "@/components/ui";
-import { Printer, Calendar } from "lucide-react";
+import { Printer, Calendar, FileText, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function ReportsPage() {
   const demoDb = useDemoDb();
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
+  const [expandedReports, setExpandedReports] = useState<string[]>([]);
 
   const workHours = demoDb.db.work_hours || [];
   const projects = demoDb.db.projects || [];
@@ -32,6 +33,7 @@ export default function ReportsPage() {
     );
   }, [workHours, monthInterval]);
 
+  // Gruppierung für Statistiken
   const byEmployee = useMemo(() => {
     const map: Record<string, number> = {};
     filteredHours.forEach(wh => {
@@ -49,14 +51,27 @@ export default function ReportsPage() {
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [filteredHours, projectMap]);
 
+  // Tagesberichte filtern
+  const tagesberichte = useMemo(() => {
+    return filteredHours
+      .filter(wh => wh.report && wh.report.trim() !== "")
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [filteredHours]);
+
+  const toggleReport = (id: string) => {
+    setExpandedReports(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
   if (loading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
 
   return (
-    <div>
-      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Monatsberichte</h1>
-          <p className="text-slate-400 mt-1">Stundenauswertung nach Monat</p>
+          <p className="text-slate-400 mt-1">Stunden & Tagesberichte auswerten</p>
         </div>
         <div className="flex items-center gap-3 bg-slate-800 p-2 rounded-xl border border-slate-700">
           <Calendar className="w-4 h-4 text-orange-500 ml-2" />
@@ -67,56 +82,95 @@ export default function ReportsPage() {
       {filteredHours.length === 0 ? (
         <EmptyState message={`Keine Daten für ${format(monthInterval.start, "MMMM yyyy", { locale: de })}`} />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-slate-900/50 rounded-2xl border border-slate-800 overflow-hidden">
-            <div className="p-6 border-b border-white/5 flex justify-between items-center">
-              <h2 className="text-white font-bold flex items-center gap-2">👤 Mitarbeiter</h2>
-              <span className="text-xs font-bold text-orange-500">{byEmployee.length} Personen</span>
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-slate-900/50 rounded-2xl border border-slate-800 overflow-hidden">
+              <div className="p-6 border-b border-white/5 flex justify-between items-center">
+                <h2 className="text-white font-bold flex items-center gap-2">👤 Mitarbeiter</h2>
+                <span className="text-xs font-bold text-orange-500">{byEmployee.length} Personen</span>
+              </div>
+              <table className="w-full text-left text-sm">
+                <thead className="text-[10px] uppercase text-slate-500 bg-white/5">
+                  <tr><th className="px-6 py-4">Name</th><th className="px-6 py-4 text-right">Stunden</th></tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {byEmployee.map(([name, hours]) => (
+                    <tr key={name} className="text-white">
+                      <td className="px-6 py-4">{name}</td>
+                      <td className="px-6 py-4 text-right text-orange-400 font-bold">{hours}h</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <table className="w-full text-left text-sm">
-              <thead className="text-[10px] uppercase text-slate-500 bg-white/5">
-                <tr><th className="px-6 py-4">Name</th><th className="px-6 py-4 text-right">Stunden</th></tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {byEmployee.map(([name, hours]) => (
-                  <tr key={name} className="text-white">
-                    <td className="px-6 py-4">{name}</td>
-                    <td className="px-6 py-4 text-right text-orange-400 font-bold">{hours}h</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+            <div className="bg-slate-900/50 rounded-2xl border border-slate-800 overflow-hidden">
+              <div className="p-6 border-b border-white/5 flex justify-between items-center">
+                <h2 className="text-white font-bold flex items-center gap-2">🏗 Baustellen</h2>
+                <span className="text-xs font-bold text-blue-500">{byProject.length} Baustellen</span>
+              </div>
+              <table className="w-full text-left text-sm">
+                <thead className="text-[10px] uppercase text-slate-500 bg-white/5">
+                  <tr><th className="px-6 py-4">Baustelle</th><th className="px-6 py-4 text-right">Stunden</th></tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {byProject.map(([name, hours]) => (
+                    <tr key={name} className="text-white">
+                      <td className="px-6 py-4">{name}</td>
+                      <td className="px-6 py-4 text-right text-blue-400 font-bold">{hours}h</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className="bg-slate-900/50 rounded-2xl border border-slate-800 overflow-hidden">
-            <div className="p-6 border-b border-white/5 flex justify-between items-center">
-              <h2 className="text-white font-bold flex items-center gap-2">🏗 Baustellen</h2>
-              <span className="text-xs font-bold text-blue-500">{byProject.length} Baustellen</span>
+            <div className="p-6 border-b border-white/5 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-orange-400" />
+              <h2 className="text-white font-bold">Tagesberichte {format(monthInterval.start, "MMMM", { locale: de })}</h2>
             </div>
-            <table className="w-full text-left text-sm">
-              <thead className="text-[10px] uppercase text-slate-500 bg-white/5">
-                <tr><th className="px-6 py-4">Baustelle</th><th className="px-6 py-4 text-right">Stunden</th></tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {byProject.map(([name, hours]) => (
-                  <tr key={name} className="text-white">
-                    <td className="px-6 py-4">{name}</td>
-                    <td className="px-6 py-4 text-right text-blue-400 font-bold">{hours}h</td>
-                  </tr>
+            {tagesberichte.length === 0 ? (
+              <div className="p-10 text-center text-slate-500">Keine Tagesberichte für diesen Monat vorhanden</div>
+            ) : (
+              <div className="divide-y divide-white/5">
+                {tagesberichte.map((wh) => (
+                  <div key={wh.id} className="p-4 hover:bg-white/5 transition-colors">
+                    <button 
+                      onClick={() => toggleReport(wh.id)}
+                      className="w-full flex items-center justify-between group"
+                    >
+                      <div className="flex flex-col items-start gap-1">
+                        <span className="text-white font-bold text-sm">{wh.employeeName}</span>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold">
+                          <span>{format(wh.date, "dd.MM.yyyy")}</span>
+                          <span>•</span>
+                          <span>{projectMap[wh.projectId]}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-orange-400 font-bold">{wh.hours}h</span>
+                        {expandedReports.includes(wh.id) ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+                      </div>
+                    </button>
+                    {expandedReports.includes(wh.id) && (
+                      <div className="mt-4 p-4 bg-black/30 rounded-xl border border-white/5 text-slate-300 text-sm leading-relaxed italic">
+                        {wh.report}
+                      </div>
+                    )}
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            )}
           </div>
-        </div>
+        </>
       )}
 
-      {filteredHours.length > 0 && (
-        <div className="mt-8 flex justify-end">
-          <button onClick={() => window.print()} className="flex items-center gap-2 px-6 py-3 bg-slate-800 text-white rounded-xl font-bold border border-slate-700">
-            <Printer className="w-4 h-4" /> Drucken
-          </button>
-        </div>
-      )}
+      <div className="flex justify-end pt-4">
+        <button onClick={() => window.print()} className="flex items-center gap-2 px-6 py-3 bg-slate-800 text-white rounded-xl font-bold border border-slate-700">
+          <Printer className="w-4 h-4" /> Drucken
+        </button>
+      </div>
     </div>
   );
 }

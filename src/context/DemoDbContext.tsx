@@ -61,7 +61,7 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
             id: m.id, projectId: m.project_id, name: m.name, quantity: Number(m.quantity), unit: m.unit, minimum: Number(m.minimum)
           })),
           work_hours: (data.workHours || []).map((wh:any) => ({
-            id: wh.id, projectId: wh.project_id, employeeName: wh.employee_name, hours: Number(wh.hours), date: new Date(wh.date), startTime: wh.start_time, endTime: wh.end_time, pause: wh.pause
+            id: wh.id, projectId: wh.project_id, employeeName: wh.employee_name, hours: Number(wh.hours), date: new Date(wh.date), startTime: wh.start_time, endTime: wh.end_time, pause: wh.pause, report: wh.report || ""
           })),
           users: data.users || [],
           messages: (data.messages || []).map((m:any) => ({
@@ -117,6 +117,16 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
     updateLocal(prev => ({ ...prev, materials: prev.materials.map(m => m.id === id ? { ...m, quantity } : m) }));
     await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'materials', data: { id, quantity } }) });
   };
+
+  const updateMaterial = async (id: string, data: Partial<Material>) => {
+    updateLocal(prev => ({ ...prev, materials: prev.materials.map(m => m.id === id ? { ...m, ...data } : m) }));
+    const serverData: any = { id };
+    if (data.name) serverData.name = data.name;
+    if (data.quantity !== undefined) serverData.quantity = data.quantity;
+    if (data.unit) serverData.unit = data.unit;
+    if (data.minimum !== undefined) serverData.minimum = data.minimum;
+    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'materials', data: serverData }) });
+  };
   
   const deleteMaterial = async (id: string) => {
     updateLocal(prev => ({ ...prev, materials: prev.materials.filter(m => m.id !== id) }));
@@ -126,7 +136,7 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
   const addWorkHour = async (data: Omit<WorkHour, "id">) => {
     const wh = { ...data, id: generateId("wh") };
     updateLocal(prev => ({ ...prev, work_hours: [wh, ...prev.work_hours] }));
-    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'work_hours', data: { id: wh.id, project_id: data.projectId, employee_name: data.employeeName, hours: data.hours, date: data.date.toISOString().split('T')[0], start_time: data.startTime, end_time: data.endTime, pause: data.pause } }) });
+    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'work_hours', data: { id: wh.id, project_id: data.projectId, employee_name: data.employeeName, hours: data.hours, date: data.date.toISOString().split('T')[0], start_time: data.startTime, end_time: data.endTime, pause: data.pause, report: (data as any).report || "" } }) });
     return wh;
   };
 

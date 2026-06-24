@@ -105,14 +105,19 @@ function MaterialSection({ projectId }: { projectId: string }) {
   };
 
   const setCustomQty = async (material: Material) => {
-    const input = prompt(
-      `Neue Menge für ${material.name} (${material.unit}):`,
-      String(material.quantity)
-    );
+    const input = prompt(`Neue Menge für ${material.name} (${material.unit}):`, String(material.quantity));
     if (input === null) return;
     const val = parseFloat(input.replace(",", "."));
     if (isNaN(val) || val < 0) return;
     await demoDb.updateMaterialQuantity(material.id, val);
+  };
+
+  const setMinimum = async (material: Material) => {
+    const input = prompt(`Mindestmenge für ${material.name} festlegen:`, String(material.minimum));
+    if (input === null) return;
+    const val = parseFloat(input.replace(",", "."));
+    if (isNaN(val) || val < 0) return;
+    await demoDb.updateMaterial(material.id, { minimum: val });
   };
 
   return (
@@ -176,7 +181,8 @@ function MaterialSection({ projectId }: { projectId: string }) {
                 <div className="flex gap-2">
                   <button onClick={() => updateQty(m, -1)} className="w-16 h-12 border border-slate-600 rounded-xl text-white font-bold">−1</button>
                   <button onClick={() => updateQty(m, 1)} className="w-16 h-12 bg-[#FF6B35] rounded-xl text-white font-bold">+1</button>
-                  <button onClick={() => setCustomQty(m)} className="flex-1 h-12 border border-slate-600 rounded-xl text-white text-sm">Menge ändern</button>
+                  <button onClick={() => setCustomQty(m)} className="flex-1 h-12 border border-slate-600 rounded-xl text-white text-sm">Menge</button>
+                  <button onClick={() => setMinimum(m)} className="w-12 h-12 border border-slate-600 rounded-xl text-white text-xs flex items-center justify-center" title="Warnschwelle">🔔</button>
                 </div>
               </div>
             );
@@ -192,6 +198,7 @@ function HoursSection({ projectId, employeeName }: { projectId: string; employee
   const [startTime, setStartTime] = useState("07:00");
   const [endTime, setEndTime] = useState("16:00");
   const [pause, setPause] = useState("30");
+  const [report, setReport] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [saved, setSaved] = useState(false);
 
@@ -209,9 +216,10 @@ function HoursSection({ projectId, employeeName }: { projectId: string; employee
   const handleSave = async () => {
     const h = calculateHours();
     await demoDb.addWorkHour({
-      projectId, employeeName, hours: h, date: new Date(date), startTime, endTime, pause: parseInt(pause) || 0
+      projectId, employeeName, hours: h, date: new Date(date), startTime, endTime, pause: parseInt(pause) || 0, report
     });
     setSaved(true);
+    setReport("");
     setTimeout(() => setSaved(false), 2000);
   };
 
@@ -227,6 +235,16 @@ function HoursSection({ projectId, employeeName }: { projectId: string; employee
           <div className="grid grid-cols-2 gap-3">
             <input type="time" className="w-full bg-[#16213E] rounded-xl p-3 text-white text-lg" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
             <input type="time" className="w-full bg-[#16213E] rounded-xl p-3 text-white text-lg" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-slate-500 text-[10px] uppercase font-bold mb-1 ml-1">Tagesbericht</label>
+            <textarea
+              className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700 resize-none"
+              rows={3}
+              placeholder="Was wurde heute gemacht?"
+              value={report}
+              onChange={(e) => setReport(e.target.value)}
+            />
           </div>
           <button onClick={handleSave} className={`w-full font-bold py-4 rounded-xl text-white ${saved ? "bg-green-500" : "bg-[#FF6B35]"}`}>
             {saved ? "✓ Gespeichert" : `Buchen (${calculateHours()}h)`}

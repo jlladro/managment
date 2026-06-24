@@ -25,6 +25,7 @@ export interface WorkHour {
   startTime?: string; // HH:mm
   endTime?: string;   // HH:mm
   pause?: number;     // minutes
+  report?: string;    // Tagesbericht
 }
 
 export interface Message {
