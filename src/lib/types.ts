@@ -43,6 +43,7 @@ export interface Employee {
   name: string;
   active: boolean;
   role: "employee" | "chef";
+  metadata?: any;
 }
 
 export interface Notification {

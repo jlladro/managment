@@ -1,10 +1,42 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import webpush from 'web-push'
 
 const supabaseUrl = 'https://dqgaejjdiggdwmcsmyju.supabase.co'
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxZ2FlampkaWdnZHdtY3NteWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjIxOTEwMCwiZXhwIjoyMDk3Nzk1MTAwfQ.zK9bAwpewIz7ohB1Y9vQ5wMTGd0PgX39OxmdjmrFnrw'
 
 const supabase = createClient(supabaseUrl, supabaseKey)
+
+// VAPID Keys für Push
+webpush.setVapidDetails(
+  'mailto:jlladrovcijon@gmail.com',
+  'BOa-eL0GenxZGWFwYz92_Q44l-__KfnxhNaCVq4avdCnunPKW6Ud1hmY1HKfzYLk6BNQkf3dqFZ6O51bxQPJJJw',
+  '6b2e8orIgCizFEw272OziFG3mMEBbjBQ9vv6-jeHGbU'
+)
+
+async function triggerPush(title: string, body: string, url: string = '/dashboard') {
+  try {
+    // Finde den Chef (oder alle Admins)
+    const { data: chefs } = await supabase.from('users').select('*').eq('role', 'chef');
+    
+    if (chefs) {
+      for (const chef of chefs) {
+        if (chef.metadata?.pushSubscription) {
+          try {
+            await webpush.sendNotification(
+              chef.metadata.pushSubscription,
+              JSON.stringify({ title, body, url })
+            );
+          } catch (err) {
+            console.error("Push failed for user", chef.name, err);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error("General Push Error", e);
+  }
+}
 
 export async function GET() {
   try {
@@ -25,10 +57,19 @@ export async function POST(req: Request) {
   try {
     const { table, data } = await req.json();
     const { error } = await supabase.from(table).upsert(data);
+    
     if (error) {
-       console.error("Supabase Error:", error);
-       throw error;
+      console.error("Supabase Error:", error);
+      throw error;
     }
+
+    // PUSH LOGIC
+    if (table === 'messages' && !data.id.includes('msg_')) { // Neue Rechnungen
+       await triggerPush("Neue Rechnung", data.title, "/dashboard/invoices");
+    } else if (table === 'work_hours') {
+       await triggerPush("Neuer Tagesbericht", `${data.employeeName} hat gebucht`, "/dashboard/reports");
+    }
+
     return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import Sidebar from "@/components/Sidebar";
 import { Menu, HardHat } from "lucide-react";
+import PushManager from "@/components/PushManager";
 
 export default function DashboardLayout({
   children,
@@ -54,6 +55,7 @@ export default function DashboardLayout({
           <div className="p-4 md:p-8 max-w-7xl mx-auto">{children}</div>
         </main>
       </div>
+      <PushManager />
     </div>
   );
 }
