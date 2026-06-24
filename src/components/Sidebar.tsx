@@ -60,7 +60,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               <span className="text-white font-bold">M</span>
             </div>
             <span className="text-xl font-bold text-white tracking-tight">MANAGEMENT</span>
-            <span className="text-[10px] bg-slate-700 text-slate-400 px-1 rounded ml-1">V2.1</span>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:text-white lg:hidden">
             <X className="w-6 h-6" />

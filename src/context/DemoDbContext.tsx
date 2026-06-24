@@ -25,19 +25,15 @@ interface DemoDbContextType {
   ready: boolean;
   db: DemoDatabase;
   reset: () => void;
-  // Projects
   addProject: (data: Omit<Project, "id">) => Promise<Project>;
   updateProject: (id: string, data: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
-  // Materials
   addMaterial: (data: Omit<Material, "id">) => Promise<Material>;
   updateMaterial: (id: string, data: Partial<Material>) => Promise<void>;
   updateMaterialQuantity: (id: string, quantity: number) => Promise<void>;
   deleteMaterial: (id: string) => Promise<void>;
-  // Work hours
   addWorkHour: (data: Omit<WorkHour, "id">) => Promise<WorkHour>;
   deleteWorkHour: (id: string) => Promise<void>;
-  // Users
   addUser: (data: Omit<Employee, "id">) => Promise<Employee>;
   updateUser: (id: string, data: Partial<Employee>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
@@ -48,12 +44,15 @@ interface DemoDbContextType {
 const DemoDbContext = createContext<DemoDbContextType | null>(null);
 
 export function DemoDbProvider({ children }: { children: ReactNode }) {
+  // Wir starten SOFORT mit den lokalen Daten, damit es KEINE Ladezeit gibt
   const [db, setDb] = useState<DemoDatabase>(loadDemoDb());
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(true);
 
   const loadAllData = useCallback(async () => {
+    console.log("Background Sync startet...");
     try {
       const res = await fetch('/api/db');
+      if (!res.ok) return;
       const data = await res.json();
       
       if (data.projects) {
@@ -70,16 +69,17 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
         }));
       }
     } catch (e) {
-      console.warn("Offline Load");
-    } finally {
-      setReady(true);
+      console.warn("Sync failed");
     }
   }, []);
 
   useEffect(() => {
-    loadAllData();
+    // Kurze Verzögerung beim Start, um den Haupt-Thread nicht zu blockieren
+    const t = setTimeout(loadAllData, 500);
+    return () => clearTimeout(t);
   }, [loadAllData]);
 
+  // UI-Update-Funktion (Sofort-Reaktion)
   const update = useCallback((updater: (prev: DemoDatabase) => DemoDatabase) => {
     setDb((prev) => {
       const next = updater(prev);
@@ -88,89 +88,54 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const addProject = useCallback(async (data: Omit<Project, "id">) => {
-    const project = { ...data, id: generateId("proj") };
-    update(prev => ({ ...prev, projects: [...prev.projects, project] }));
-    await fetch('/api/db', {
-      method: 'POST',
-      body: JSON.stringify({ table: 'projects', data: project })
-    });
-    return project;
-  }, [update]);
+  // CRUD Funktionen mit Hintergrund-POST
+  const addProject = async (data: Omit<Project, "id">) => {
+    const p = { ...data, id: generateId("proj") };
+    update(prev => ({ ...prev, projects: [...prev.projects, p] }));
+    fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'projects', data: p }) });
+    return p;
+  };
 
-  const addMaterial = useCallback(async (data: Omit<Material, "id">) => {
-    const material = { ...data, id: generateId("mat") };
-    update(prev => ({ ...prev, materials: [...prev.materials, material] }));
-    await fetch('/api/db', {
-      method: 'POST',
-      body: JSON.stringify({ 
-        table: 'materials', 
-        data: {
-          id: material.id,
-          project_id: material.projectId,
-          name: material.name,
-          quantity: material.quantity,
-          unit: material.unit,
-          minimum: material.minimum
-        } 
-      })
-    });
-    return material;
-  }, [update]);
+  const addMaterial = async (data: Omit<Material, "id">) => {
+    const m = { ...data, id: generateId("mat") };
+    update(prev => ({ ...prev, materials: [...prev.materials, m] }));
+    fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'materials', data: { id: m.id, project_id: m.projectId, name: m.name, quantity: m.quantity, unit: m.unit, minimum: m.minimum } }) });
+    return m;
+  };
 
-  const addWorkHour = useCallback(async (data: Omit<WorkHour, "id">) => {
-    const entry = { ...data, id: generateId("wh") };
-    update(prev => ({ ...prev, work_hours: [entry, ...prev.work_hours] }));
-    await fetch('/api/db', {
-      method: 'POST',
-      body: JSON.stringify({ 
-        table: 'work_hours', 
-        data: {
-          id: entry.id,
-          project_id: data.projectId,
-          employee_name: data.employeeName,
-          hours: data.hours,
-          date: data.date.toISOString().split('T')[0],
-          start_time: data.startTime,
-          end_time: data.endTime,
-          pause: data.pause
-        } 
-      })
-    });
-    return entry;
-  }, [update]);
+  const addWorkHour = async (data: Omit<WorkHour, "id">) => {
+    const wh = { ...data, id: generateId("wh") };
+    update(prev => ({ ...prev, work_hours: [wh, ...prev.work_hours] }));
+    fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'work_hours', data: { id: wh.id, project_id: data.projectId, employee_name: data.employeeName, hours: data.hours, date: data.date.toISOString().split('T')[0], start_time: data.startTime, end_time: data.endTime, pause: data.pause } }) });
+    return wh;
+  };
 
   const deleteProject = async (id:string) => {
     update(prev => ({ ...prev, projects: prev.projects.filter(p => p.id !== id) }));
-    await fetch('/api/db', { method: 'DELETE', body: JSON.stringify({ table: 'projects', id }) });
+    fetch('/api/db', { method: 'DELETE', body: JSON.stringify({ table: 'projects', id }) });
   };
   
   const deleteMaterial = async (id:string) => {
     update(prev => ({ ...prev, materials: prev.materials.filter(m => m.id !== id) }));
-    await fetch('/api/db', { method: 'DELETE', body: JSON.stringify({ table: 'materials', id }) });
-  };
-
-  const updateMaterialQuantity = async (id:string, quantity:number) => {
-    update(prev => ({ ...prev, materials: prev.materials.map(m => m.id === id ? {...m, quantity} : m) }));
-    // Einfachheitshalber nutzen wir hier POST/INSERT was bei Supabase als upsert wirken kann oder wir lassen es für diesen Test
+    fetch('/api/db', { method: 'DELETE', body: JSON.stringify({ table: 'materials', id }) });
   };
 
   const deleteWorkHour = async (id:string) => {
     update(prev => ({ ...prev, work_hours: prev.work_hours.filter(wh => wh.id !== id) }));
-    await fetch('/api/db', { method: 'DELETE', body: JSON.stringify({ table: 'work_hours', id }) });
+    fetch('/api/db', { method: 'DELETE', body: JSON.stringify({ table: 'work_hours', id }) });
   };
 
   const addUser = async (data:any) => {
     const u = {...data, id: generateId("u")};
     update(prev => ({...prev, users: [...prev.users, u]}));
-    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'users', data: u }) });
+    fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'users', data: u }) });
     return u;
   };
 
   return (
     <DemoDbContext.Provider value={{
-      ready, db, reset: () => {}, addProject, deleteProject, updateProject: async()=>{},
-      addMaterial, deleteMaterial, updateMaterialQuantity, updateMaterial: async()=>{},
+      ready: true, db, reset: () => {}, addProject, deleteProject, updateProject: async()=>{},
+      addMaterial, deleteMaterial, updateMaterialQuantity: async()=>{}, updateMaterial: async()=>{},
       addWorkHour, deleteWorkHour, addUser, deleteUser: async()=>{}, updateUser: async()=>{},
       addMessage: (d:any)=>d, addNotification: ()=>{}
     }}>
