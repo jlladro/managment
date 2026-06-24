@@ -15,21 +15,28 @@ webpush.setVapidDetails(
 )
 
 async function triggerPush(title: string, body: string, url: string = '/dashboard') {
+  console.log(`Push Triggered: ${title} - ${body}`);
   try {
-    // Finde den Chef (oder alle Admins)
-    const { data: chefs } = await supabase.from('users').select('*').eq('role', 'chef');
+    const { data: chefs, error } = await supabase.from('users').select('*').eq('role', 'chef');
+    if (error) console.error("Error fetching chefs for push:", error);
+    
+    console.log(`Found ${chefs?.length || 0} chefs for push.`);
     
     if (chefs) {
       for (const chef of chefs) {
         if (chef.metadata?.pushSubscription) {
+          console.log(`Sending push to ${chef.name}...`);
           try {
             await webpush.sendNotification(
               chef.metadata.pushSubscription,
               JSON.stringify({ title, body, url })
             );
-          } catch (err) {
-            console.error("Push failed for user", chef.name, err);
+            console.log(`Push sent successfully to ${chef.name}`);
+          } catch (err: any) {
+            console.error("Push failed for user", chef.name, err.statusCode, err.message);
           }
+        } else {
+          console.log(`Chef ${chef.name} has no push subscription.`);
         }
       }
     }
@@ -64,10 +71,12 @@ export async function POST(req: Request) {
     }
 
     // PUSH LOGIC
-    if (table === 'messages' && !data.id.includes('msg_')) { // Neue Rechnungen
-       await triggerPush("Neue Rechnung", data.title, "/dashboard/invoices");
+    if (table === 'messages' && (!data.id.includes('msg_') || data.id.includes('test_'))) { // Neue Rechnungen oder Test
+       await triggerPush(data.title || "Neue Nachricht", data.body || "", "/dashboard/invoices");
     } else if (table === 'work_hours') {
        await triggerPush("Neuer Tagesbericht", `${data.employeeName} hat gebucht`, "/dashboard/reports");
+    } else if (table === 'materials' && data.quantity <= (data.minimum || 0) && (data.minimum || 0) > 0) {
+       await triggerPush("Material Warnung ⚠️", `${data.name} ist fast leer: nur noch ${data.quantity} ${data.unit} übrig!`, "/dashboard/projects");
     }
 
     return NextResponse.json({ success: true });
