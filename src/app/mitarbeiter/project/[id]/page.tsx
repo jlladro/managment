@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, MapPin, HardHat, ChevronRight } from "lucide-react";
+import { ArrowLeft, MapPin, HardHat, ChevronRight, FileText, Plus, Receipt } from "lucide-react";
 import { useEmployee } from "@/context/EmployeeContext";
 import { useDemoDb } from "@/context/DemoDbContext";
 import type { Material, WorkHour, Message, Project } from "@/lib/types";
@@ -57,13 +57,13 @@ export default function ProjectPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-20">
         <MaterialSection projectId={projectId} />
+        <InvoiceSection projectId={projectId} employeeName={employeeName || "Unbekannt"} />
         <HoursSection
           projectId={projectId}
           employeeName={employeeName || "Unbekannt"}
         />
-        <MessagesSection projectId={projectId} />
         <WarningsSection projectId={projectId} />
       </div>
     </div>
@@ -72,7 +72,7 @@ export default function ProjectPage() {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-white font-semibold text-base px-4 pt-5 pb-2 flex items-center gap-2">
+    <h2 className="text-white font-semibold text-base px-4 pt-6 pb-2 flex items-center gap-2">
       {children}
     </h2>
   );
@@ -99,51 +99,49 @@ function MaterialSection({ projectId }: { projectId: string }) {
     setIsAdding(false);
   };
 
-  const updateQty = async (material: Material, delta: number) => {
-    const newQty = Math.max(0, material.quantity + delta);
-    await demoDb.updateMaterialQuantity(material.id, newQty);
+  const updateQty = async (m: Material, delta: number) => {
+    await demoDb.updateMaterialQuantity(m.id, Math.max(0, m.quantity + delta));
   };
 
-  const setCustomQty = async (material: Material) => {
-    const input = prompt(`Neue Menge für ${material.name} (${material.unit}):`, String(material.quantity));
-    if (input === null) return;
-    const val = parseFloat(input.replace(",", "."));
-    if (isNaN(val) || val < 0) return;
-    await demoDb.updateMaterialQuantity(material.id, val);
+  const setCustomQty = async (m: Material) => {
+    const val = prompt(`Neue Menge für ${m.name}:`, String(m.quantity));
+    if (val !== null) {
+      await demoDb.updateMaterialQuantity(m.id, Math.max(0, parseInt(val) || 0));
+    }
   };
 
-  const setMinimum = async (material: Material) => {
-    const input = prompt(`Mindestmenge für ${material.name} festlegen:`, String(material.minimum));
-    if (input === null) return;
-    const val = parseFloat(input.replace(",", "."));
-    if (isNaN(val) || val < 0) return;
-    await demoDb.updateMaterial(material.id, { minimum: val });
+  const setMinimum = async (m: Material) => {
+    const val = prompt(`Warnschwelle für ${m.name} festlegen:`, String(m.minimum || 0));
+    if (val !== null) {
+      await demoDb.updateMaterial(m.id, { minimum: Math.max(0, parseInt(val) || 0) });
+    }
   };
 
   return (
     <section>
-      <div className="flex items-center justify-between pr-4">
-        <SectionTitle>📦 Material</SectionTitle>
+      <div className="flex justify-between items-end pr-4">
+        <SectionTitle>📦 Materialien</SectionTitle>
         <button
           onClick={() => setIsAdding(!isAdding)}
-          className="mt-4 bg-[#FF6B35]/10 text-[#FF6B35] px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95"
+          className="text-[#FF6B35] bg-[#FF6B35]/10 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 mb-1.5 active:scale-95"
         >
-          {isAdding ? "Abbrechen" : "+ Hinzufügen"}
+          <Plus className="w-3 h-3" /> Material
         </button>
       </div>
 
       {isAdding && (
-        <div className="px-4 mb-4">
-          <div className="bg-[#0F3460] rounded-2xl p-4 border border-[#FF6B35]/30 space-y-3">
-            <input
-              className="w-full bg-[#16213E] rounded-xl px-4 py-3 text-white text-sm outline-none border border-slate-700 focus:border-[#FF6B35]"
-              placeholder="Material Name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-            />
-            <div className="flex gap-2">
+        <div className="px-4 pb-4">
+          <div className="bg-[#0F3460] rounded-2xl p-4 border border-[#FF6B35]/20">
+            <div className="flex gap-3 mb-3">
               <input
-                className="flex-1 bg-[#16213E] rounded-xl px-4 py-3 text-white text-sm outline-none border border-slate-700"
+                className="flex-1 bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700"
+                placeholder="Name (z.B. Zement)"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                autoFocus
+              />
+              <input
+                className="w-24 bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700"
                 placeholder="Einheit"
                 value={newUnit}
                 onChange={(e) => setNewUnit(e.target.value)}
@@ -164,29 +162,104 @@ function MaterialSection({ projectId }: { projectId: string }) {
       ) : (
         <div className="px-4 pb-2 space-y-3">
           {materials.map((m) => {
-            const isLow = m.quantity <= m.minimum;
+            const isLow = m.quantity <= m.minimum && m.minimum > 0;
             return (
               <div key={m.id} className="bg-[#0F3460] rounded-2xl p-4">
                 <div className="flex items-start justify-between mb-2">
                   <span className="text-white font-semibold text-lg">{m.name}</span>
-                  {isLow && m.minimum > 0 && (
+                  {isLow && (
                     <span className="text-xs bg-[#E74C3C]/20 text-[#E74C3C] px-2 py-1 rounded-lg font-medium">
                       ⚠ Niedrig
                     </span>
                   )}
                 </div>
-                <p className={`text-3xl font-bold mb-3 ${isLow && m.minimum > 0 ? "text-[#E74C3C]" : "text-[#FF6B35]"}`}>
+                <p className={`text-3xl font-bold mb-3 ${isLow ? "text-[#E74C3C]" : "text-[#FF6B35]"}`}>
                   {m.quantity} {m.unit}
                 </p>
                 <div className="flex gap-2">
-                  <button onClick={() => updateQty(m, -1)} className="w-16 h-12 border border-slate-600 rounded-xl text-white font-bold">−1</button>
-                  <button onClick={() => updateQty(m, 1)} className="w-16 h-12 bg-[#FF6B35] rounded-xl text-white font-bold">+1</button>
-                  <button onClick={() => setCustomQty(m)} className="flex-1 h-12 border border-slate-600 rounded-xl text-white text-sm">Menge</button>
-                  <button onClick={() => setMinimum(m)} className="w-12 h-12 border border-slate-600 rounded-xl text-white text-xs flex items-center justify-center" title="Warnschwelle">🔔</button>
+                  <button onClick={() => updateQty(m, -1)} className="w-16 h-12 border border-slate-600 rounded-xl text-white font-bold active:bg-white/5">−1</button>
+                  <button onClick={() => updateQty(m, 1)} className="w-16 h-12 bg-[#FF6B35] rounded-xl text-white font-bold active:scale-95">+1</button>
+                  <button onClick={() => setCustomQty(m)} className="flex-1 h-12 border border-slate-600 rounded-xl text-white text-sm active:bg-white/5">Menge</button>
+                  <button onClick={() => setMinimum(m)} className="w-12 h-12 border border-slate-600 rounded-xl text-white text-xs flex items-center justify-center active:bg-white/5" title="Warnschwelle">🔔</button>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function InvoiceSection({ projectId, employeeName }: { projectId: string; employeeName: string }) {
+  const demoDb = useDemoDb();
+  const [isAdding, setIsAdding] = useState(false);
+  const [title, setTitle] = useState("");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const handleSend = async () => {
+    if (!title.trim() || !amount.trim()) return;
+    await demoDb.addMessage({
+      title: `${employeeName}: ${title}`,
+      body: `Betrag: ${amount} €\nNotiz: ${note}`,
+      targetType: "project",
+      targetProjectIds: [projectId]
+    });
+    setTitle("");
+    setAmount("");
+    setNote("");
+    setSaved(true);
+    setTimeout(() => {
+      setSaved(false);
+      setIsAdding(false);
+    }, 2000);
+  };
+
+  return (
+    <section className="px-4">
+      <div className="flex justify-between items-end">
+        <SectionTitle>🧾 Rechnungen</SectionTitle>
+        <button
+          onClick={() => setIsAdding(!isAdding)}
+          className="text-[#FF6B35] bg-[#FF6B35]/10 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 mb-1.5 active:scale-95"
+        >
+          <Receipt className="w-4 h-4" /> Rechnung senden
+        </button>
+      </div>
+
+      {isAdding && (
+        <div className="bg-[#0F3460] rounded-2xl p-5 space-y-4 border border-[#FF6B35]/20 mt-2">
+          <div className="space-y-3">
+             <input
+                className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700"
+                placeholder="Was wurde gekauft? (z.B. Hornbach)"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+             />
+             <input
+                type="text"
+                className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700"
+                placeholder="Betrag in €"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+             />
+             <textarea
+                className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700 resize-none"
+                placeholder="Zusätzliche Notizen..."
+                rows={2}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+             />
+          </div>
+          <button 
+            onClick={handleSend}
+            disabled={!title.trim() || !amount.trim() || saved}
+            className={`w-full py-4 rounded-xl font-bold transition-all ${saved ? "bg-green-500" : "bg-[#FF6B35]"} text-white active:scale-95`}
+          >
+            {saved ? "✓ Gesendet" : "Rechnung abschicken"}
+          </button>
         </div>
       )}
     </section>
@@ -227,32 +300,32 @@ function HoursSection({ projectId, employeeName }: { projectId: string; employee
     <section className="border-t border-[#0F3460] mt-4">
       <SectionTitle>⏱ Arbeitszeiten</SectionTitle>
       <div className="px-4 pb-3">
-        <div className="bg-[#0F3460] rounded-2xl p-4 space-y-4">
+        <div className="bg-[#0F3460] rounded-2xl p-4 space-y-4 shadow-lg border border-white/5">
           <div className="grid grid-cols-2 gap-3">
-            <input type="date" className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm" value={date} onChange={(e) => setDate(e.target.value)} />
-            <input type="number" className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm" value={pause} onChange={(e) => setPause(e.target.value)} placeholder="Pause" />
+            <input type="date" className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm border border-slate-700 outline-none" value={date} onChange={(e) => setDate(e.target.value)} />
+            <input type="number" className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm border border-slate-700 outline-none" value={pause} onChange={(e) => setPause(e.target.value)} placeholder="Pause" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <input type="time" className="w-full bg-[#16213E] rounded-xl p-3 text-white text-lg" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-            <input type="time" className="w-full bg-[#16213E] rounded-xl p-3 text-white text-lg" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            <input type="time" className="w-full bg-[#16213E] rounded-xl p-3 text-white text-lg border border-slate-700 outline-none" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            <input type="time" className="w-full bg-[#16213E] rounded-xl p-3 text-white text-lg border border-slate-700 outline-none" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
           </div>
           <div>
-            <label className="block text-slate-500 text-[10px] uppercase font-bold mb-1 ml-1">Tagesbericht</label>
+            <label className="block text-slate-500 text-[10px] uppercase font-bold mb-1 ml-1 tracking-widest">Tagesbericht</label>
             <textarea
-              className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700 resize-none"
+              className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700 resize-none focus:border-[#FF6B35]/50 transition-colors"
               rows={3}
               placeholder="Was wurde heute gemacht?"
               value={report}
               onChange={(e) => setReport(e.target.value)}
             />
           </div>
-          <button onClick={handleSave} className={`w-full font-bold py-4 rounded-xl text-white ${saved ? "bg-green-500" : "bg-[#FF6B35]"}`}>
+          <button onClick={handleSave} className={`w-full font-bold py-4 rounded-xl text-white transition-all shadow-lg active:scale-95 ${saved ? "bg-green-500" : "bg-[#FF6B35]"}`}>
             {saved ? "✓ Gespeichert" : `Buchen (${calculateHours()}h)`}
           </button>
         </div>
 
         <div className="mt-6 space-y-3">
-          {workHours.length > 0 && <p className="text-slate-500 text-[10px] uppercase font-bold ml-1">Letzte Buchungen</p>}
+          {workHours.length > 0 && <p className="text-slate-500 text-[10px] uppercase font-bold ml-1 tracking-widest">Letzte Buchungen</p>}
           {[...workHours].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((wh) => (
             <div key={wh.id} className="bg-[#0F3460] rounded-2xl p-4 border border-white/5">
               <div className="flex justify-between items-start">
@@ -283,44 +356,25 @@ function HoursSection({ projectId, employeeName }: { projectId: string; employee
   );
 }
 
-function MessagesSection({ projectId }: { projectId: string }) {
-  const demoDb = useDemoDb();
-  const messages = demoDb.db.messages.filter(m => m.targetType === "all" || m.targetProjectIds.includes(projectId));
-
-  if (messages.length === 0) return null;
-
-  return (
-    <section className="border-t border-[#0F3460] mt-4 px-4 pb-4">
-      <SectionTitle>💬 Nachrichten</SectionTitle>
-      <div className="space-y-2">
-        {messages.map((msg) => (
-          <div key={msg.id} className="bg-[#0F3460] rounded-xl p-4 border-l-4 border-orange-500">
-            <p className="text-white font-medium text-sm">{msg.title}</p>
-            <p className="text-slate-400 text-xs mt-1">{msg.body}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function WarningsSection({ projectId }: { projectId: string }) {
   const demoDb = useDemoDb();
-  const lowMaterials = demoDb.db.materials.filter(m => m.projectId === projectId && m.quantity <= m.minimum);
+  const lowMaterials = demoDb.db.materials.filter(m => m.projectId === projectId && m.quantity <= m.minimum && m.minimum > 0);
 
   if (lowMaterials.length === 0) return null;
 
   return (
-    <section className="border-t border-[#0F3460] mt-4 px-4 pb-6">
-      <SectionTitle>⚠ Warnungen</SectionTitle>
-      <div className="space-y-2">
-        {lowMaterials.map((m) => (
-          <div key={m.id} className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-            <p className="text-red-500 font-medium text-sm">{m.name} fast leer</p>
-            <p className="text-slate-500 text-xs mt-1">Noch {m.quantity} {m.unit}</p>
+    <section className="px-4 mt-6">
+       <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
+          <SectionTitle><span className="text-red-400">🚨 Material dringend!</span></SectionTitle>
+          <div className="space-y-2 mt-2">
+             {lowMaterials.map(m => (
+               <div key={m.id} className="flex justify-between items-center text-sm">
+                  <span className="text-white font-medium">{m.name}</span>
+                  <span className="text-red-400 font-bold">{m.quantity} / {m.minimum} {m.unit}</span>
+               </div>
+             ))}
           </div>
-        ))}
-      </div>
+       </div>
     </section>
   );
 }

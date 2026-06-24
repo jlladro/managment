@@ -24,7 +24,7 @@ const navItems = [
   { href: "/dashboard/materials", label: "Materialien", icon: Package },
   { href: "/dashboard/work-hours", label: "Arbeitszeiten", icon: Clock },
   { href: "/dashboard/reports", label: "Berichte", icon: FileText },
-  { href: "/dashboard/messages", label: "Nachrichten", icon: MessageSquare },
+  { href: "/dashboard/invoices", label: "Rechnungen", icon: FileText },
   { href: "/dashboard/employees", label: "Mitarbeiter", icon: Users },
 ];
 
