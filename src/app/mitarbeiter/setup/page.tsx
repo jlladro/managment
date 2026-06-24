@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { HardHat } from "lucide-react";
+import { HardHat, User, ArrowRight, Loader2 } from "lucide-react";
 import { useEmployee } from "@/context/EmployeeContext";
 import { useDemoDb } from "@/context/DemoDbContext";
 
@@ -20,13 +20,11 @@ export default function SetupPage() {
     try {
       const normalizedName = name.trim();
       
-      // Prüfe ob Mitarbeiter schon in der DB existiert
       const existing = demoDb.db.users.find(
         u => u.name.toLowerCase() === normalizedName.toLowerCase()
       );
 
       if (!existing) {
-        // Nur neu anlegen wenn noch nicht vorhanden
         await demoDb.addUser({
           name: normalizedName,
           active: true,
@@ -34,7 +32,6 @@ export default function SetupPage() {
         });
       }
       
-      // Lokal speichern
       setEmployeeName(normalizedName);
       router.push("/mitarbeiter/home");
     } catch (e) {
@@ -45,42 +42,51 @@ export default function SetupPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col p-6 overflow-y-auto bg-[#1A1A2E]">
-      <div className="text-center mt-12 mb-10">
-        <div className="w-24 h-24 bg-[#FF6B35]/20 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-[#FF6B35]/30">
-          <HardHat className="w-12 h-12 text-[#FF6B35]" />
-        </div>
-        <h1 className="text-2xl font-bold text-white">Mitarbeiter Login</h1>
-        <p className="text-slate-400 mt-2 text-sm leading-relaxed">
-          Bitte gib deinen Vor- und Nachnamen ein,<br />um dich anzumelden.
-        </p>
-      </div>
-
-      <div className="flex-1 max-w-md mx-auto w-full space-y-6">
-        <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-500 uppercase ml-1">Dein Name</label>
-          <input
-            className="w-full bg-[#16213E] border border-slate-700/50 rounded-2xl px-5 py-4 text-white text-lg placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-[#FF6B35] transition-all"
-            placeholder="z.B. Max Mustermann"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-            disabled={saving}
-          />
+    <div className="flex-1 flex flex-col min-h-screen bg-[#0B0E14] p-8">
+      <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
+        <div className="text-center mb-12">
+          <div className="w-24 h-24 bg-orange-500 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-orange-500/30 animate-in zoom-in duration-700">
+            <HardHat className="w-12 h-12 text-white" />
+          </div>
+          <h1 className="text-3xl font-black text-white tracking-tight mb-3">Login</h1>
+          <p className="text-slate-500 text-sm font-medium leading-relaxed">
+            Gib deinen Namen ein,<br />um auf deine Baustellen zuzugreifen.
+          </p>
         </div>
 
-        <button
-          onClick={handleContinue}
-          disabled={!name.trim() || saving}
-          className="w-full bg-[#FF6B35] hover:bg-[#e55a28] disabled:opacity-40 text-white font-bold py-5 rounded-2xl transition-all text-xl shadow-lg shadow-orange-500/20 active:scale-95"
-        >
-          {saving ? "Lädt..." : "Jetzt Anmelden"}
-        </button>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1">Vollständiger Name</label>
+            <div className="relative">
+              <User className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <input
+                className="w-full bg-[#12161F] border border-white/5 rounded-3xl py-5 pl-14 pr-6 text-white text-lg placeholder-slate-700 outline-none focus:border-orange-500/50 focus:ring-4 focus:ring-orange-500/10 transition-all shadow-xl"
+                placeholder="z.B. Max Mustermann"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoFocus
+                disabled={saving}
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={handleContinue}
+            disabled={!name.trim() || saving}
+            className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-30 text-white font-black py-6 rounded-3xl transition-all text-xl shadow-2xl shadow-orange-500/20 active:scale-95 flex items-center justify-center gap-3"
+          >
+            {saving ? (
+              <Loader2 className="w-6 h-6 animate-spin" />
+            ) : (
+              <>WEITER <ArrowRight className="w-6 h-6" /></>
+            )}
+          </button>
+        </div>
       </div>
 
-      <p className="text-center text-slate-600 text-[10px] mt-10 uppercase tracking-widest">
-        MANAGEMENT SYSTEM V2
-      </p>
+      <div className="pt-10 text-center opacity-10 pointer-events-none">
+         <p className="text-[10px] font-black uppercase tracking-[0.5em]">Construction Management V2.0</p>
+      </div>
     </div>
   );
 }

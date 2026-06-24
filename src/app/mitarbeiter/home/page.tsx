@@ -2,30 +2,15 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Sun, Moon, MapPin, ChevronRight } from "lucide-react";
+import { Search, MapPin, ChevronRight, HardHat, LogOut, Loader2 } from "lucide-react";
 import { useEmployee } from "@/context/EmployeeContext";
 import { useDemoDb } from "@/context/DemoDbContext";
-import type { Project } from "@/lib/types";
-import { PROJECT_STATUS_LABELS } from "@/lib/types";
-
-const statusColors: Record<string, string> = {
-  active: "bg-[#2ECC71]/15 text-[#2ECC71]",
-  completed: "bg-slate-500/15 text-slate-400",
-  paused: "bg-[#F39C12]/15 text-[#F39C12]",
-};
-
-const statusDot: Record<string, string> = {
-  active: "bg-[#2ECC71]",
-  completed: "bg-slate-400",
-  paused: "bg-[#F39C12]",
-};
 
 export default function HomePage() {
   const { employeeName, clearEmployee } = useEmployee();
   const demoDb = useDemoDb();
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [dark, setDark] = useState(true);
 
   const projects = [...demoDb.db.projects].sort((a, b) => a.name.localeCompare(b.name));
   const loading = !demoDb.ready;
@@ -36,58 +21,97 @@ export default function HomePage() {
     return projects.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
-        p.address.toLowerCase().includes(q)
+        (p.address && p.address.toLowerCase().includes(q))
     );
   }, [projects, search]);
 
   useEffect(() => {
-    if (!employeeName) {
+    if (!employeeName && !loading) {
       router.replace("/mitarbeiter/setup");
     }
-  }, [employeeName, router]);
+  }, [employeeName, router, loading]);
 
   if (!employeeName) return null;
 
   return (
-    <div className={`flex-1 flex flex-col ${dark ? "bg-[#1A1A2E]" : "bg-slate-100"}`}>
-      <div className={`px-4 pt-10 pb-3 flex items-center justify-between ${dark ? "bg-[#1A1A2E]" : "bg-white border-b"}`}>
-        <h1 className={`text-xl font-bold ${dark ? "text-white" : "text-slate-900"}`}>Baustellen</h1>
-        <div className="flex items-center gap-1">
-          <button onClick={() => setDark(!dark)} className={`p-2 rounded-lg ${dark ? "text-slate-400" : "text-slate-500"}`}>
-            {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+    <div className="flex-1 flex flex-col bg-[#0B0E14] min-h-screen">
+      {/* Premium Header */}
+      <div className="px-6 pt-14 pb-6 bg-[#12161F] border-b border-white/5 shadow-2xl">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+             <div className="w-12 h-12 bg-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/20">
+                <HardHat className="text-white w-7 h-7" />
+             </div>
+             <div>
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Eingeloggt als</p>
+                <h2 className="text-white font-bold text-lg leading-tight">{employeeName}</h2>
+             </div>
+          </div>
+          <button 
+            onClick={() => { if(confirm("Abmelden?")) { clearEmployee(); router.push("/mitarbeiter/setup"); } }}
+            className="p-3 bg-white/5 rounded-xl text-slate-400 active:bg-red-500/10 active:text-red-400 transition-all"
+          >
+            <LogOut className="w-5 h-5" />
           </button>
-          <button onClick={() => { clearEmployee(); router.push("/mitarbeiter/setup"); }} className={`text-xs px-2 py-1 ${dark ? "text-slate-400" : "text-slate-500"}`}>
-            {employeeName}
-          </button>
+        </div>
+
+        <div className="relative group">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-orange-500 transition-colors">
+            <Search className="w-5 h-5" />
+          </div>
+          <input 
+            className="w-full bg-[#0B0E14] border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-slate-600 outline-none focus:border-orange-500/50 transition-all shadow-inner"
+            placeholder="Baustelle suchen..." 
+            value={search} 
+            onChange={(e) => setSearch(e.target.value)} 
+          />
         </div>
       </div>
 
-      <div className="px-4 py-3">
-        <div className={`flex items-center gap-2 px-4 py-3 rounded-xl ${dark ? "bg-[#16213E]" : "bg-white border"}`}>
-          <Search className="w-4 h-4 text-slate-500" />
-          <input className={`flex-1 bg-transparent outline-none text-sm ${dark ? "text-white" : "text-slate-900"}`} placeholder="Suchen..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      {/* Projects List */}
+      <div className="flex-1 overflow-y-auto px-6 py-8 space-y-4">
+        <div className="flex items-center justify-between mb-2">
+           <h3 className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] ml-1">Aktive Baustellen</h3>
+           <span className="bg-orange-500/10 text-orange-400 text-[10px] font-bold px-3 py-1 rounded-full border border-orange-500/20">
+             {filtered.length} GESAMT
+           </span>
         </div>
-      </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-3">
         {loading ? (
-          <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" /></div>
+          <div className="flex flex-col items-center justify-center py-20 gap-4 opacity-40">
+             <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
+             <p className="text-xs font-black uppercase tracking-widest">Baustellen laden...</p>
+          </div>
         ) : filtered.length === 0 ? (
-          <p className="text-center py-12 text-slate-500 text-sm">Keine Baustellen online</p>
+          <div className="bg-[#12161F] border border-dashed border-white/10 rounded-[32px] p-16 text-center">
+             <p className="text-slate-600 font-bold text-sm">Keine Baustellen gefunden</p>
+          </div>
         ) : (
           filtered.map((project) => (
-            <button key={project.id} onClick={() => router.push(`/mitarbeiter/project/${project.id}`)} className={`w-full text-left rounded-2xl p-5 ${dark ? "bg-[#0F3460]" : "bg-white border shadow-sm"}`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${statusDot[project.status]}`} />
-                <div className="flex-1 min-w-0">
-                  <p className={`font-bold ${dark ? "text-white" : "text-slate-900"}`}>{project.name}</p>
-                  <p className="text-xs text-slate-500 truncate">{project.address}</p>
+            <button 
+              key={project.id} 
+              onClick={() => router.push(`/mitarbeiter/project/${project.id}`)} 
+              className="w-full text-left bg-[#12161F] border border-white/5 hover:border-orange-500/30 active:scale-[0.98] transition-all rounded-[32px] p-6 shadow-xl flex items-center gap-5 group"
+            >
+              <div className={`w-3 h-3 rounded-full shadow-[0_0_12px] group-hover:scale-125 transition-transform ${project.status === 'active' ? 'bg-green-500 shadow-green-500/50' : 'bg-slate-600 shadow-slate-600/20'}`} />
+              <div className="flex-1 min-w-0">
+                <h4 className="text-white font-bold text-lg leading-tight group-hover:text-orange-400 transition-colors">{project.name}</h4>
+                <div className="flex items-center gap-1.5 mt-1">
+                   <MapPin className="w-3 h-3 text-slate-600" />
+                   <p className="text-slate-500 text-xs truncate font-medium">{project.address || "Keine Adresse"}</p>
                 </div>
-                <ChevronRight className="w-5 h-5 text-orange-500" />
+              </div>
+              <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-all">
+                <ChevronRight className="w-6 h-6" />
               </div>
             </button>
           ))
         )}
+      </div>
+
+      {/* Global Brand Footer */}
+      <div className="p-10 text-center opacity-20 pointer-events-none">
+         <p className="text-[10px] font-black uppercase tracking-[0.5em]">Construction Management V2.0</p>
       </div>
     </div>
   );
