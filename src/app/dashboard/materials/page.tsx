@@ -17,7 +17,6 @@ const emptyForm = {
 export default function MaterialsPage() {
   const demoDb = useDemoDb();
   
-  // Wir nehmen die Daten jetzt DIREKT aus dem DemoDb-Kontext (Supabase-Synchronisiert)
   const materials = [...demoDb.db.materials].sort((a, b) => a.name.localeCompare(b.name));
   const projects = [...demoDb.db.projects].sort((a, b) => a.name.localeCompare(b.name));
   const loading = !demoDb.ready;
@@ -58,8 +57,7 @@ export default function MaterialsPage() {
         minimum: Number(form.minimum),
       };
       if (editing) {
-        await demoDb.updateProject(editing.id, data as any); // Bugfix: mapping to correct function later if needed
-        // Simples Update über context
+        // Update über context
         await demoDb.updateMaterialQuantity(editing.id, data.quantity);
       } else {
         await demoDb.addMaterial(data);

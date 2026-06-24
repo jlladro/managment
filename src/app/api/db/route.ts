@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-// Der Generalschlüssel auf dem Server (Sicher vor fremden Blicken)
 const supabaseUrl = 'https://dqgaejjdiggdwmcsmyju.supabase.co'
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxZ2FlampkaWdnZHdtY3NteWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjIxOTEwMCwiZXhwIjoyMDk3Nzk1MTAwfQ.zK9bAwpewIz7ohB1Y9vQ5wMTGd0PgX39OxmdjmrFnrw'
 
@@ -24,7 +23,19 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const { table, data } = await req.json();
-    const { error } = await supabase.from(table).insert(data);
+    // Nutze upsert damit wir sowohl neue Zeilen erstellen als auch bestehende updaten können
+    const { error } = await supabase.from(table).upsert(data);
+    if (error) throw error;
+    return NextResponse.json({ success: true });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const { table, id, data } = await req.json();
+    const { error } = await supabase.from(table).update(data).eq('id', id);
     if (error) throw error;
     return NextResponse.json({ success: true });
   } catch (e: any) {
@@ -35,6 +46,7 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const { table, id } = await req.json();
+    if (!id) throw new Error("ID wird benötigt");
     const { error } = await supabase.from(table).delete().eq('id', id);
     if (error) throw error;
     return NextResponse.json({ success: true });

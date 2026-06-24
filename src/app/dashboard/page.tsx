@@ -1,82 +1,23 @@
 "use client";
 
-import { orderBy } from "firebase/firestore";
 import { Building2, AlertTriangle, Users, Clock } from "lucide-react";
-import { useCollection, timestampToDate } from "@/lib/hooks";
 import { useDemoDb } from "@/context/DemoDbContext";
-import { DEMO_MODE } from "@/lib/demo-data";
 import { StatCard, LoadingSpinner } from "@/components/ui";
-import type { Project, Material, WorkHour, Notification } from "@/lib/types";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 
 export default function DashboardPage() {
   const demoDb = useDemoDb();
-  const { data: firestoreProjects, loading: loadingProjectsFs } = useCollection<Project>(
-    "projects",
-    [orderBy("name")],
-    (id, data) => ({
-      id,
-      name: (data.name as string) || "",
-      address: (data.address as string) || "",
-      status: (data.status as Project["status"]) || "active",
-      createdAt: timestampToDate(data.createdAt),
-    })
-  );
-
-  const { data: firestoreMaterials, loading: loadingMaterialsFs } =
-    useCollection<Material>(
-      "materials",
-      [orderBy("name")],
-      (id, data) => ({
-        id,
-        projectId: (data.projectId as string) || "",
-        name: (data.name as string) || "",
-        quantity: (data.quantity as number) || 0,
-        unit: (data.unit as string) || "Stück",
-        minimum: (data.minimum as number) || 0,
-      })
-    );
-
-  const { data: firestoreWorkHours, loading: loadingHoursFs } = useCollection<WorkHour>(
-    "work_hours",
-    [orderBy("date", "desc")],
-    (id, data) => ({
-      id,
-      projectId: (data.projectId as string) || "",
-      employeeName: (data.employeeName as string) || "",
-      hours: (data.hours as number) || 0,
-      date: timestampToDate(data.date) || new Date(),
-    })
-  );
-
-  const { data: firestoreNotifications } = useCollection<Notification>(
-    "notifications",
-    [orderBy("createdAt", "desc")],
-    (id, data) => ({
-      id,
-      title: (data.title as string) || "",
-      body: (data.body as string) || "",
-      type: (data.type as string) || "",
-      projectId: data.projectId as string | undefined,
-      createdAt: timestampToDate(data.createdAt),
-    })
-  );
-
-  const projects = DEMO_MODE ? demoDb.db.projects : firestoreProjects;
-  const materials = DEMO_MODE ? demoDb.db.materials : firestoreMaterials;
-  const workHours = DEMO_MODE ? demoDb.db.work_hours : firestoreWorkHours;
-  const notifications = DEMO_MODE ? demoDb.db.notifications : firestoreNotifications;
-  const loadingProjects = DEMO_MODE ? false : loadingProjectsFs;
-  const loadingMaterials = DEMO_MODE ? false : loadingMaterialsFs;
-  const loadingHours = DEMO_MODE ? false : loadingHoursFs;
-
-  if (loadingProjects || loadingMaterials || loadingHours) {
-    return <LoadingSpinner />;
-  }
+  
+  const projects = demoDb.db.projects || [];
+  const materials = demoDb.db.materials || [];
+  const workHours = demoDb.db.work_hours || [];
+  const notifications = demoDb.db.notifications || [];
+  const loading = !demoDb.ready;
 
   const activeProjects = projects.filter((p) => p.status === "active");
-  const lowMaterials = materials.filter((m) => m.quantity <= m.minimum);
+  const lowMaterials = materials.filter((m) => m.quantity <= m.minimum && m.minimum > 0);
+  
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayHours = workHours.filter((wh) => {
@@ -84,100 +25,67 @@ export default function DashboardPage() {
     d.setHours(0, 0, 0, 0);
     return d.getTime() === today.getTime();
   });
+  
   const totalTodayHours = todayHours.reduce((sum, wh) => sum + wh.hours, 0);
   const activeEmployees = new Set(todayHours.map((wh) => wh.employeeName)).size;
   const totalAllHours = workHours.reduce((sum, wh) => sum + wh.hours, 0);
-
   const projectMap = Object.fromEntries(projects.map((p) => [p.id, p.name]));
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <p className="text-slate-400 mt-1">Übersicht aller Baustellen</p>
+        <p className="text-slate-400 mt-1">Übersicht aller online gespeicherten Daten</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-        <StatCard
-          title="Baustellen"
-          value={activeProjects.length}
-          subtitle={`${projects.length} gesamt`}
-          icon={<Building2 className="w-6 h-6" />}
-          color="blue"
-        />
-        <StatCard
-          title="Materialwarnungen"
-          value={lowMaterials.length}
-          subtitle="Unter Mindestwert"
-          icon={<AlertTriangle className="w-6 h-6" />}
-          color={lowMaterials.length > 0 ? "red" : "green"}
-        />
-        <StatCard
-          title="Aktive Mitarbeiter"
-          value={activeEmployees}
-          subtitle="Heute eingetragen"
-          icon={<Users className="w-6 h-6" />}
-          color="green"
-        />
-        <StatCard
-          title="Arbeitsstunden"
-          value={`${totalTodayHours}h`}
-          subtitle={`${totalAllHours}h gesamt`}
-          icon={<Clock className="w-6 h-6" />}
-          color="orange"
-        />
+        <StatCard title="Baustellen" value={activeProjects.length} subtitle={`${projects.length} gesamt`} icon={<Building2 className="w-6 h-6" />} color="blue" />
+        <StatCard title="Materialwarnungen" value={lowMaterials.length} subtitle="Unter Mindestwert" icon={<AlertTriangle className="w-6 h-6" />} color={lowMaterials.length > 0 ? "red" : "green"} />
+        <StatCard title="Aktive Mitarbeiter" value={activeEmployees} subtitle="Heute eingetragen" icon={<Users className="w-6 h-6" />} color="green" />
+        <StatCard title="Stunden (Heute)" value={`${totalTodayHours}h`} subtitle={`${totalAllHours}h gesamt`} icon={<Clock className="w-6 h-6" />} color="orange" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="table-container">
-          <div className="p-4 border-b border-slate-700">
-            <h2 className="font-semibold text-white flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-400" />
-              Materialwarnungen
-            </h2>
+        <div className="bg-slate-800/20 border border-slate-700/50 rounded-3xl overflow-hidden">
+          <div className="p-4 border-b border-slate-700 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+            <h2 className="font-semibold text-white">Materialwarnungen</h2>
           </div>
           {lowMaterials.length === 0 ? (
-            <div className="p-6 text-slate-400 text-sm text-center">
-              Keine Warnungen – alles in Ordnung
-            </div>
+            <div className="p-10 text-slate-500 text-center">Alles auf Lager</div>
           ) : (
-            <div className="divide-y divide-slate-700">
+            <div className="divide-y divide-white/5">
               {lowMaterials.slice(0, 5).map((m) => (
-                <div key={m.id} className="px-4 py-3 flex justify-between items-center">
+                <div key={m.id} className="px-5 py-4 flex justify-between items-center hover:bg-white/5">
                   <div>
                     <p className="text-white font-medium">{m.name}</p>
-                    <p className="text-xs text-slate-400">
-                      {projectMap[m.projectId] || "Unbekannte Baustelle"}
-                    </p>
+                    <p className="text-xs text-slate-500">{projectMap[m.projectId] || "Baustelle gelöscht"}</p>
                   </div>
-                  <span className="text-red-400 text-sm font-medium">
-                    {m.quantity} / {m.minimum} {m.unit}
-                  </span>
+                  <span className="text-red-400 font-bold">{m.quantity} {m.unit}</span>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        <div className="table-container">
-          <div className="p-4 border-b border-slate-700">
-            <h2 className="font-semibold text-white">Letzte Benachrichtigungen</h2>
-          </div>
-          {notifications.length === 0 ? (
-            <div className="p-6 text-slate-400 text-sm text-center">
-              Keine Benachrichtigungen
-            </div>
+        <div className="bg-slate-800/20 border border-slate-700/50 rounded-3xl overflow-hidden">
+          <div className="p-4 border-b border-slate-700"><h2 className="font-semibold text-white">Letzte Aktivitäten</h2></div>
+          {workHours.length === 0 ? (
+            <div className="p-10 text-slate-500 text-center">Noch keine Buchungen</div>
           ) : (
-            <div className="divide-y divide-slate-700">
-              {notifications.slice(0, 5).map((n) => (
-                <div key={n.id} className="px-4 py-3">
-                  <p className="text-white text-sm font-medium">{n.title}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{n.body}</p>
-                  {n.createdAt && (
-                    <p className="text-xs text-slate-500 mt-1">
-                      {format(n.createdAt, "dd.MM.yyyy HH:mm", { locale: de })}
-                    </p>
-                  )}
+            <div className="divide-y divide-white/5">
+              {workHours.slice(0, 5).map((wh) => (
+                <div key={wh.id} className="px-5 py-4 flex justify-between items-center hover:bg-white/5">
+                  <div>
+                    <p className="text-white font-medium">{wh.employeeName}</p>
+                    <p className="text-xs text-slate-500">{projectMap[wh.projectId]}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-orange-400 font-bold">{wh.hours}h</p>
+                    <p className="text-[10px] text-slate-500">{format(new Date(wh.date), "dd.MM.yyyy")}</p>
+                  </div>
                 </div>
               ))}
             </div>

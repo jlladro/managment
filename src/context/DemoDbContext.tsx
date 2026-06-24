@@ -44,15 +44,13 @@ interface DemoDbContextType {
 const DemoDbContext = createContext<DemoDbContextType | null>(null);
 
 export function DemoDbProvider({ children }: { children: ReactNode }) {
-  // Wir starten SOFORT mit den lokalen Daten, damit es KEINE Ladezeit gibt
   const [db, setDb] = useState<DemoDatabase>(loadDemoDb());
-  const [ready, setReady] = useState(true);
+  const [ready, setReady] = useState(false);
 
   const loadAllData = useCallback(async () => {
-    console.log("Background Sync startet...");
     try {
       const res = await fetch('/api/db');
-      if (!res.ok) return;
+      if (!res.ok) throw new Error("Sync failed");
       const data = await res.json();
       
       if (data.projects) {
@@ -65,22 +63,24 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
           work_hours: (data.workHours || []).map((wh:any) => ({
             id: wh.id, projectId: wh.project_id, employeeName: wh.employee_name, hours: Number(wh.hours), date: new Date(wh.date), startTime: wh.start_time, endTime: wh.end_time, pause: wh.pause
           })),
-          users: data.users || []
+          users: data.users || [],
+          messages: (data.messages || []).map((m:any) => ({
+            id: m.id, title: m.title, body: m.body, targetType: m.target_type, targetProjectIds: m.target_project_ids || [], createdAt: new Date(m.created_at)
+          }))
         }));
       }
     } catch (e) {
-      console.warn("Sync failed");
+      console.warn("Background Sync failed");
+    } finally {
+      setReady(true);
     }
   }, []);
 
   useEffect(() => {
-    // Kurze Verzögerung beim Start, um den Haupt-Thread nicht zu blockieren
-    const t = setTimeout(loadAllData, 500);
-    return () => clearTimeout(t);
+    loadAllData();
   }, [loadAllData]);
 
-  // UI-Update-Funktion (Sofort-Reaktion)
-  const update = useCallback((updater: (prev: DemoDatabase) => DemoDatabase) => {
+  const updateLocal = useCallback((updater: (prev: DemoDatabase) => DemoDatabase) => {
     setDb((prev) => {
       const next = updater(prev);
       saveDemoDb(next);
@@ -88,56 +88,83 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // CRUD Funktionen mit Hintergrund-POST
+  // CRUD Implementierungen
   const addProject = async (data: Omit<Project, "id">) => {
     const p = { ...data, id: generateId("proj") };
-    update(prev => ({ ...prev, projects: [...prev.projects, p] }));
-    fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'projects', data: p }) });
+    updateLocal(prev => ({ ...prev, projects: [...prev.projects, p] }));
+    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'projects', data: p }) });
     return p;
+  };
+
+  const updateProject = async (id: string, data: Partial<Project>) => {
+    updateLocal(prev => ({ ...prev, projects: prev.projects.map(p => p.id === id ? { ...p, ...data } : p) }));
+    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'projects', data: { id, ...data } }) });
+  };
+
+  const deleteProject = async (id: string) => {
+    updateLocal(prev => ({ ...prev, projects: prev.projects.filter(p => p.id !== id) }));
+    await fetch('/api/db', { method: 'DELETE', body: JSON.stringify({ table: 'projects', id }) });
   };
 
   const addMaterial = async (data: Omit<Material, "id">) => {
     const m = { ...data, id: generateId("mat") };
-    update(prev => ({ ...prev, materials: [...prev.materials, m] }));
-    fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'materials', data: { id: m.id, project_id: m.projectId, name: m.name, quantity: m.quantity, unit: m.unit, minimum: m.minimum } }) });
+    updateLocal(prev => ({ ...prev, materials: [...prev.materials, m] }));
+    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'materials', data: { id: m.id, project_id: m.projectId, name: m.name, quantity: m.quantity, unit: m.unit, minimum: m.minimum } }) });
     return m;
+  };
+
+  const updateMaterialQuantity = async (id: string, quantity: number) => {
+    updateLocal(prev => ({ ...prev, materials: prev.materials.map(m => m.id === id ? { ...m, quantity } : m) }));
+    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'materials', data: { id, quantity } }) });
+  };
+  
+  const deleteMaterial = async (id: string) => {
+    updateLocal(prev => ({ ...prev, materials: prev.materials.filter(m => m.id !== id) }));
+    await fetch('/api/db', { method: 'DELETE', body: JSON.stringify({ table: 'materials', id }) });
   };
 
   const addWorkHour = async (data: Omit<WorkHour, "id">) => {
     const wh = { ...data, id: generateId("wh") };
-    update(prev => ({ ...prev, work_hours: [wh, ...prev.work_hours] }));
-    fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'work_hours', data: { id: wh.id, project_id: data.projectId, employee_name: data.employeeName, hours: data.hours, date: data.date.toISOString().split('T')[0], start_time: data.startTime, end_time: data.endTime, pause: data.pause } }) });
+    updateLocal(prev => ({ ...prev, work_hours: [wh, ...prev.work_hours] }));
+    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'work_hours', data: { id: wh.id, project_id: data.projectId, employee_name: data.employeeName, hours: data.hours, date: data.date.toISOString().split('T')[0], start_time: data.startTime, end_time: data.endTime, pause: data.pause } }) });
     return wh;
   };
 
-  const deleteProject = async (id:string) => {
-    update(prev => ({ ...prev, projects: prev.projects.filter(p => p.id !== id) }));
-    fetch('/api/db', { method: 'DELETE', body: JSON.stringify({ table: 'projects', id }) });
-  };
-  
-  const deleteMaterial = async (id:string) => {
-    update(prev => ({ ...prev, materials: prev.materials.filter(m => m.id !== id) }));
-    fetch('/api/db', { method: 'DELETE', body: JSON.stringify({ table: 'materials', id }) });
+  const deleteWorkHour = async (id: string) => {
+    updateLocal(prev => ({ ...prev, work_hours: prev.work_hours.filter(wh => wh.id !== id) }));
+    await fetch('/api/db', { method: 'DELETE', body: JSON.stringify({ table: 'work_hours', id }) });
   };
 
-  const deleteWorkHour = async (id:string) => {
-    update(prev => ({ ...prev, work_hours: prev.work_hours.filter(wh => wh.id !== id) }));
-    fetch('/api/db', { method: 'DELETE', body: JSON.stringify({ table: 'work_hours', id }) });
-  };
-
-  const addUser = async (data:any) => {
-    const u = {...data, id: generateId("u")};
-    update(prev => ({...prev, users: [...prev.users, u]}));
-    fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'users', data: u }) });
+  const addUser = async (data: Omit<Employee, "id">) => {
+    const u = { ...data, id: generateId("u") };
+    updateLocal(prev => ({ ...prev, users: [...prev.users, u] }));
+    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'users', data: u }) });
     return u;
+  };
+
+  const updateUser = async (id: string, data: Partial<Employee>) => {
+    updateLocal(prev => ({ ...prev, users: prev.users.map(u => u.id === id ? { ...u, ...data } : u) }));
+    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'users', data: { id, ...data } }) });
+  };
+
+  const deleteUser = async (id: string) => {
+    updateLocal(prev => ({ ...prev, users: prev.users.filter(u => u.id !== id) }));
+    await fetch('/api/db', { method: 'DELETE', body: JSON.stringify({ table: 'users', id }) });
+  };
+
+  const addMessage = async (data: any) => {
+    const msg = { ...data, id: generateId("msg"), createdAt: new Date() };
+    updateLocal(prev => ({ ...prev, messages: [msg, ...prev.messages] }));
+    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'messages', data: { id: msg.id, title: data.title, body: data.body, target_type: data.targetType, target_project_ids: data.targetProjectIds } }) });
+    return msg;
   };
 
   return (
     <DemoDbContext.Provider value={{
-      ready: true, db, reset: () => {}, addProject, deleteProject, updateProject: async()=>{},
-      addMaterial, deleteMaterial, updateMaterialQuantity: async()=>{}, updateMaterial: async()=>{},
-      addWorkHour, deleteWorkHour, addUser, deleteUser: async()=>{}, updateUser: async()=>{},
-      addMessage: (d:any)=>d, addNotification: ()=>{}
+      ready, db, reset: () => {}, addProject, updateProject, deleteProject,
+      addMaterial, updateMaterial: async()=>{}, updateMaterialQuantity, deleteMaterial,
+      addWorkHour, deleteWorkHour, addUser, updateUser, deleteUser,
+      addMessage, addNotification: ()=>{}
     }}>
       {children}
     </DemoDbContext.Provider>

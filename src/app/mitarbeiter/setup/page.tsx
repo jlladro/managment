@@ -18,36 +18,21 @@ export default function SetupPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [useCustom, setUseCustom] = useState(false);
 
-  const { data: firestoreEmployees, loading } = useCollection<Employee>(
-    "users",
-    [orderBy("name")],
-    (id, data) => ({
-      id,
-      name: (data.name as string) || "",
-      active: (data.active as boolean) ?? true,
-      role: (data.role as Employee["role"]) || "employee",
-    })
-  );
+  // Wir nutzen die neue globale Datenbank
+  const employees = demoDb.db.users.filter((e) => e.active);
+  const loading = !demoDb.ready;
 
-  const employees = DEMO_MODE
-    ? demoDb.db.users.filter((e) => e.active)
-    : firestoreEmployees.filter((e) => e.active);
-
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (useCustom) {
       if (!customName.trim()) return;
       const normalizedName = customName.trim();
       
-      // Check if employee already exists in DB
-      const existing = employees.find(e => e.name.toLowerCase() === normalizedName.toLowerCase());
-      if (!existing) {
-        // Add new employee to DB
-        demoDb.addUser({
-          name: normalizedName,
-          active: true,
-          role: "employee"
-        });
-      }
+      // Add new employee to global DB
+      await demoDb.addUser({
+        name: normalizedName,
+        active: true,
+        role: "employee"
+      });
       setEmployeeName(normalizedName);
     } else {
       const emp = employees.find((e) => e.id === selectedId);
