@@ -12,20 +12,27 @@ export async function POST(req: Request) {
     const file = formData.get('file') as File;
     const path = formData.get('path') as string;
 
-    if (!file || !path) {
-      return NextResponse.json({ error: "Datei oder Pfad fehlt" }, { status: 400 });
-    }
+    if (!file) return NextResponse.json({ error: "Keine Datei erhalten" }, { status: 400 });
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const arrayBuffer = await file.arrayBuffer();
+    const fileBase64 = Buffer.from(arrayBuffer);
     
+    // Wir versuchen den Upload mit dem Bucket 'invoices'
     const { data, error } = await supabase.storage
       .from('invoices')
-      .upload(path, buffer, {
+      .upload(path, fileBase64, {
         contentType: file.type,
+        cacheControl: '3600',
         upsert: true
       });
 
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase Storage Error:", error);
+      return NextResponse.json({ 
+        error: `Supabase Fehler: ${error.message}`, 
+        details: error 
+      }, { status: 500 });
+    }
 
     const { data: { publicUrl } } = supabase.storage
       .from('invoices')
@@ -33,7 +40,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: publicUrl });
   } catch (e: any) {
-    console.error("Upload Error:", e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    console.error("General Upload Error:", e);
+    return NextResponse.json({ error: `Server Fehler: ${e.message}` }, { status: 500 });
   }
 }

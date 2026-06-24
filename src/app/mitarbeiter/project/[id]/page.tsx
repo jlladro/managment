@@ -230,7 +230,10 @@ function InvoiceSection({ projectId, employeeName }: { projectId: string; employ
           body: formData
         });
         
-        if (!uploadRes.ok) throw new Error("Bild-Upload fehlgeschlagen. Hast du den Bucket 'invoices' erstellt?");
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json();
+          throw new Error(errData.error || "Bild-Upload fehlgeschlagen");
+        }
         const { url } = await uploadRes.json();
         imageUrl = url;
       }
