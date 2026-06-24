@@ -138,7 +138,11 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
     const wh = { ...data, id: generateId("wh") };
     updateLocal(prev => ({ ...prev, work_hours: [wh, ...prev.work_hours] }));
     const localDate = wh.date.getFullYear() + '-' + String(wh.date.getMonth() + 1).padStart(2, '0') + '-' + String(wh.date.getDate()).padStart(2, '0');
-    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'work_hours', data: { id: wh.id, project_id: data.projectId, employee_name: data.employeeName, hours: data.hours, date: localDate, start_time: data.startTime, end_time: data.endTime, pause: data.pause, report: (data as any).report || "" } }) });
+    const res = await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'work_hours', data: { id: wh.id, project_id: data.projectId, employee_name: data.employeeName, hours: data.hours, date: localDate, start_time: data.startTime, end_time: data.endTime, pause: data.pause, report: data.report || "" } }) });
+    if (!res.ok) {
+      const err = await res.json();
+      alert("Fehler beim Speichern der Stunden: " + (err.error || res.statusText));
+    }
     return wh;
   };
 
@@ -167,7 +171,11 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
   const addMessage = async (data: any) => {
     const msg = { ...data, id: generateId("msg"), createdAt: new Date() };
     updateLocal(prev => ({ ...prev, messages: [msg, ...prev.messages] }));
-    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'messages', data: { id: msg.id, title: data.title, body: data.body, target_type: data.targetType, target_project_ids: data.targetProjectIds } }) });
+    const res = await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'messages', data: { id: msg.id, title: data.title, body: data.body, target_type: data.targetType, target_project_ids: data.targetProjectIds } }) });
+    if (!res.ok) {
+       const err = await res.json();
+       alert("Fehler beim Senden der Nachricht: " + (err.error || res.statusText));
+    }
     return msg;
   };
 
