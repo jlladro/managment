@@ -114,18 +114,19 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
   };
 
   const updateMaterialQuantity = async (id: string, quantity: number) => {
-    updateLocal(prev => ({ ...prev, materials: prev.materials.map(m => m.id === id ? { ...m, quantity } : m) }));
-    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'materials', data: { id, quantity } }) });
+    const material = db.materials.find(m => m.id === id);
+    if (!material) return;
+    const updated = { ...material, quantity };
+    updateLocal(prev => ({ ...prev, materials: prev.materials.map(m => m.id === id ? updated : m) }));
+    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'materials', data: { id: updated.id, project_id: updated.projectId, name: updated.name, quantity: updated.quantity, unit: updated.unit, minimum: updated.minimum } }) });
   };
 
   const updateMaterial = async (id: string, data: Partial<Material>) => {
-    updateLocal(prev => ({ ...prev, materials: prev.materials.map(m => m.id === id ? { ...m, ...data } : m) }));
-    const serverData: any = { id };
-    if (data.name) serverData.name = data.name;
-    if (data.quantity !== undefined) serverData.quantity = data.quantity;
-    if (data.unit) serverData.unit = data.unit;
-    if (data.minimum !== undefined) serverData.minimum = data.minimum;
-    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'materials', data: serverData }) });
+    const material = db.materials.find(m => m.id === id);
+    if (!material) return;
+    const updated = { ...material, ...data };
+    updateLocal(prev => ({ ...prev, materials: prev.materials.map(m => m.id === id ? updated : m) }));
+    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'materials', data: { id: updated.id, project_id: updated.projectId, name: updated.name, quantity: updated.quantity, unit: updated.unit, minimum: updated.minimum } }) });
   };
   
   const deleteMaterial = async (id: string) => {

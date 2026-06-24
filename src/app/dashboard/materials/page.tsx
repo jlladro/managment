@@ -57,8 +57,7 @@ export default function MaterialsPage() {
         minimum: Number(form.minimum),
       };
       if (editing) {
-        // Update über context
-        await demoDb.updateMaterialQuantity(editing.id, data.quantity);
+        await demoDb.updateMaterial(editing.id, data);
       } else {
         await demoDb.addMaterial(data);
       }
@@ -202,6 +201,15 @@ export default function MaterialsPage() {
                 onChange={(e) => setForm({ ...form, unit: e.target.value })}
               />
             </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-slate-500 uppercase">Mindestmenge (Warnschwelle)</label>
+            <input
+              type="number"
+              className="bg-slate-800 border-slate-700 rounded-xl p-3 text-white"
+              value={form.minimum}
+              onChange={(e) => setForm({ ...form, minimum: Number(e.target.value) })}
+            />
           </div>
           <div className="flex gap-3 mt-6">
             <button onClick={() => setModalOpen(false)} className="flex-1 p-3 rounded-xl bg-slate-800 text-white font-bold">Abbrechen</button>
