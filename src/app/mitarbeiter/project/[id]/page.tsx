@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, MapPin, HardHat, ChevronRight, FileText, Plus, Receipt, Camera, Upload, X } from "lucide-react";
+import { ArrowLeft, HardHat, FileText, Plus, Receipt, Camera, Upload, Trash2, Calendar, Clock as ClockIcon, AlertCircle } from "lucide-react";
 import { useEmployee } from "@/context/EmployeeContext";
 import { useDemoDb } from "@/context/DemoDbContext";
 import type { Material, WorkHour, Message, Project } from "@/lib/types";
@@ -21,7 +21,7 @@ export default function ProjectPage() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#1A1A2E]">
+      <div className="flex-1 flex items-center justify-center bg-[#0B0E14]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500" />
       </div>
     );
@@ -29,35 +29,39 @@ export default function ProjectPage() {
 
   if (!project) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-slate-400 bg-[#1A1A2E]">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-slate-400 bg-[#0B0E14]">
         <p>Baustelle nicht gefunden</p>
-        <Link href="/mitarbeiter/home" className="text-[#FF6B35] mt-4 text-sm">
-          Zurück zur Übersicht
+        <Link href="/mitarbeiter/home" className="text-[#FF6B35] mt-4 text-sm font-bold bg-[#FF6B35]/10 px-6 py-3 rounded-2xl">
+          ZURÜCK ZUR ÜBERSICHT
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-[#1A1A2E] overflow-hidden">
-      <div className="px-4 pt-10 pb-3 bg-[#1A1A2E] border-b border-[#0F3460] flex-shrink-0">
-        <div className="flex items-center gap-3">
+    <div className="flex-1 flex flex-col bg-[#0B0E14] overflow-hidden">
+      {/* Premium Sticky Header */}
+      <div className="px-5 pt-12 pb-4 bg-[#12161F]/80 backdrop-blur-md border-b border-white/5 flex-shrink-0 z-10">
+        <div className="flex items-center gap-4">
           <Link
             href="/mitarbeiter/home"
-            className="p-2 -ml-2 text-slate-400 hover:text-white active:bg-[#0F3460] rounded-xl"
+            className="p-3 bg-white/5 text-slate-400 hover:text-white active:scale-90 transition-all rounded-2xl border border-white/5"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-6 h-6" />
           </Link>
           <div className="flex-1 min-w-0">
-            <h1 className="text-white font-bold text-lg truncate">{project.name}</h1>
+            <h1 className="text-white font-bold text-xl truncate leading-tight">{project.name}</h1>
             {project.address && (
-              <p className="text-slate-500 text-xs truncate">{project.address}</p>
+              <div className="flex items-center gap-1 mt-0.5">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                <p className="text-slate-500 text-[11px] font-bold uppercase tracking-wider truncate">{project.address}</p>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-20">
+      <div className="flex-1 overflow-y-auto pb-24 space-y-6 scroll-smooth">
         <MaterialSection projectId={projectId} />
         <InvoiceSection projectId={projectId} employeeName={employeeName || "Unbekannt"} />
         <HoursSection
@@ -66,15 +70,23 @@ export default function ProjectPage() {
         />
         <WarningsSection projectId={projectId} />
       </div>
+
+      {/* Floating Action Hint für Mobile? (Optional) */}
     </div>
   );
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function SectionHeader({ title, icon, action }: { title: string; icon: React.ReactNode, action?: React.ReactNode }) {
   return (
-    <h2 className="text-white font-semibold text-base px-4 pt-6 pb-2 flex items-center gap-2">
-      {children}
-    </h2>
+    <div className="flex items-center justify-between px-5 mb-4">
+      <div className="flex items-center gap-2.5">
+        <div className="p-2 bg-orange-500/10 rounded-lg">
+          {icon}
+        </div>
+        <h2 className="text-white font-bold text-lg">{title}</h2>
+      </div>
+      {action}
+    </div>
   );
 }
 
@@ -103,90 +115,116 @@ function MaterialSection({ projectId }: { projectId: string }) {
     await demoDb.updateMaterialQuantity(m.id, Math.max(0, m.quantity + delta));
   };
 
-  const setCustomQty = async (m: Material) => {
-    const val = prompt(`Neue Menge für ${m.name}:`, String(m.quantity));
-    if (val !== null) {
-      await demoDb.updateMaterialQuantity(m.id, Math.max(0, parseInt(val) || 0));
-    }
-  };
-
-  const setMinimum = async (m: Material) => {
-    const val = prompt(`Warnschwelle für ${m.name} festlegen:`, String(m.minimum || 0));
-    if (val !== null) {
-      await demoDb.updateMaterial(m.id, { minimum: Math.max(0, parseInt(val) || 0) });
+  const setExactQty = async (m: Material, val: string) => {
+    const num = parseInt(val);
+    if (!isNaN(num)) {
+      await demoDb.updateMaterialQuantity(m.id, Math.max(0, num));
     }
   };
 
   return (
     <section>
-      <div className="flex justify-between items-end pr-4">
-        <SectionTitle>📦 Materialien</SectionTitle>
-        <button
-          onClick={() => setIsAdding(!isAdding)}
-          className="text-[#FF6B35] bg-[#FF6B35]/10 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 mb-1.5 active:scale-95"
-        >
-          <Plus className="w-3 h-3" /> Material
-        </button>
-      </div>
+      <SectionHeader 
+        title="Materialien" 
+        icon={<Plus className="w-5 h-5 text-orange-500" />} 
+        action={
+          <button
+            onClick={() => setIsAdding(!isAdding)}
+            className="text-orange-500 text-xs font-bold uppercase tracking-widest active:scale-95"
+          >
+            {isAdding ? "Abbrechen" : "+ NEU"}
+          </button>
+        }
+      />
 
       {isAdding && (
-        <div className="px-4 pb-4">
-          <div className="bg-[#0F3460] rounded-2xl p-4 border border-[#FF6B35]/20">
-            <div className="flex gap-3 mb-3">
+        <div className="px-5 mb-6">
+          <div className="bg-[#12161F] rounded-[24px] p-5 border border-orange-500/30 shadow-2xl">
+            <div className="space-y-4">
               <input
-                className="flex-1 bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700"
-                placeholder="Name (z.B. Zement)"
+                className="w-full bg-[#0B0E14] rounded-xl p-4 text-white text-md outline-none border border-white/10 placeholder:text-slate-600 focus:border-orange-500/50"
+                placeholder="Bezeichnung (z.B. Sand)"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                autoFocus
               />
-              <input
-                className="w-24 bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700"
-                placeholder="Einheit"
-                value={newUnit}
-                onChange={(e) => setNewUnit(e.target.value)}
-              />
-              <button
-                onClick={handleAddMaterial}
-                className="bg-[#FF6B35] text-white px-6 rounded-xl font-bold active:scale-95"
-              >
-                OK
-              </button>
+              <div className="flex gap-3">
+                <input
+                  className="flex-1 bg-[#0B0E14] rounded-xl p-4 text-white text-md outline-none border border-white/10"
+                  placeholder="Einheit (Stk/kg)"
+                  value={newUnit}
+                  onChange={(e) => setNewUnit(e.target.value)}
+                />
+                <button
+                  onClick={handleAddMaterial}
+                  className="bg-orange-500 text-white px-8 rounded-xl font-bold active:scale-95 shadow-lg shadow-orange-500/20"
+                >
+                  HINZUFÜGEN
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {materials.length === 0 ? (
-        <p className="text-slate-500 text-sm text-center py-6 px-4">Keine Materialien</p>
-      ) : (
-        <div className="px-4 pb-2 space-y-3">
-          {materials.map((m) => {
+      <div className="px-5 space-y-4">
+        {materials.length === 0 ? (
+          <div className="bg-[#12161F] rounded-[24px] p-8 text-center border border-dashed border-white/5">
+             <p className="text-slate-600 font-bold uppercase text-[10px] tracking-[0.2em]">Kein Material gelistet</p>
+          </div>
+        ) : (
+          materials.map((m) => {
             const isLow = m.quantity <= m.minimum && m.minimum > 0;
             return (
-              <div key={m.id} className="bg-[#0F3460] rounded-2xl p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <span className="text-white font-semibold text-lg">{m.name}</span>
+              <div key={m.id} className={`bg-[#12161F] rounded-[32px] p-5 border ${isLow ? 'border-red-500/30' : 'border-white/5'} transition-all shadow-xl`}>
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-white font-bold text-lg leading-tight">{m.name}</h3>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-0.5">{m.unit}</p>
+                  </div>
                   {isLow && (
-                    <span className="text-xs bg-[#E74C3C]/20 text-[#E74C3C] px-2 py-1 rounded-lg font-medium">
-                      ⚠ Niedrig
-                    </span>
+                    <div className="p-2 bg-red-500/10 rounded-full animate-pulse">
+                       <AlertCircle className="w-5 h-5 text-red-500" />
+                    </div>
                   )}
                 </div>
-                <p className={`text-3xl font-bold mb-3 ${isLow ? "text-[#E74C3C]" : "text-[#FF6B35]"}`}>
-                  {m.quantity} {m.unit}
-                </p>
-                <div className="flex gap-2">
-                  <button onClick={() => updateQty(m, -1)} className="w-16 h-12 border border-slate-600 rounded-xl text-white font-bold active:bg-white/5">−1</button>
-                  <button onClick={() => updateQty(m, 1)} className="w-16 h-12 bg-[#FF6B35] rounded-xl text-white font-bold active:scale-95">+1</button>
-                  <button onClick={() => setCustomQty(m)} className="flex-1 h-12 border border-slate-600 rounded-xl text-white text-sm active:bg-white/5">Menge</button>
-                  <button onClick={() => setMinimum(m)} className="w-12 h-12 border border-slate-600 rounded-xl text-white text-xs flex items-center justify-center active:bg-white/5" title="Warnschwelle">🔔</button>
+
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => updateQty(m, -1)} 
+                    className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-white active:bg-white/10 border border-white/5"
+                  >
+                    <span className="text-2xl">−</span>
+                  </button>
+                  
+                  <div className="flex-1 relative">
+                    <input 
+                      type="number" 
+                      className={`w-full bg-black/30 rounded-2xl h-14 text-center font-black text-2xl outline-none border transition-colors ${isLow ? 'text-red-400 border-red-500/20' : 'text-orange-500 border-white/10'}`}
+                      value={m.quantity}
+                      onChange={(e) => setExactQty(m, e.target.value)}
+                    />
+                  </div>
+
+                  <button 
+                    onClick={() => updateQty(m, 1)} 
+                    className="w-14 h-14 bg-orange-500 rounded-2xl flex items-center justify-center text-white active:scale-90 transition-transform shadow-lg shadow-orange-500/20"
+                  >
+                    <span className="text-2xl font-bold">+</span>
+                  </button>
+                </div>
+                
+                <div className="mt-4 flex justify-between items-center text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                   <span>Min: {m.minimum || 0} {m.unit}</span>
+                   <button onClick={() => {
+                      const val = prompt(`Warnschwelle für ${m.name}:`, String(m.minimum || 0));
+                      if (val) demoDb.updateMaterial(m.id, { minimum: parseInt(val) || 0 });
+                   }} className="text-orange-500 opacity-60">⚓ SCHWELLE ANPASSEN</button>
                 </div>
               </div>
             );
-          })}
-        </div>
-      )}
+          })
+        )}
+      </div>
     </section>
   );
 }
@@ -218,9 +256,7 @@ function InvoiceSection({ projectId, employeeName }: { projectId: string; employ
     
     try {
       let imageUrl = "";
-      
       if (image) {
-        // Upload image to Supabase
         const formData = new FormData();
         formData.append('file', image);
         formData.append('path', `inv_${Date.now()}_${image.name.replace(/\s/g, '_')}`);
@@ -230,12 +266,9 @@ function InvoiceSection({ projectId, employeeName }: { projectId: string; employ
           body: formData
         });
         
-        if (!uploadRes.ok) {
-          const errData = await uploadRes.json();
-          throw new Error(errData.error || "Bild-Upload fehlgeschlagen");
-        }
-        const { url } = await uploadRes.json();
-        imageUrl = url;
+        const resData = await uploadRes.json();
+        if (!uploadRes.ok) throw new Error(resData.error || "Upload fehlgeschlagen");
+        imageUrl = resData.url;
       }
 
       await demoDb.addMessage({
@@ -243,119 +276,99 @@ function InvoiceSection({ projectId, employeeName }: { projectId: string; employ
         body: amount ? `${amount} €` : "",
         targetType: "project",
         targetProjectIds: [projectId],
-        metadata: { imageUrl } // Wir speichern die Bild-URL in metadata
+        metadata: { imageUrl }
       });
 
-      setTitle("");
-      setAmount("");
-      setImage(null);
-      setPreview(null);
-      setSaved(true);
-      setTimeout(() => {
-        setSaved(false);
-        setIsAdding(false);
-      }, 2000);
+      setTitle(""); setAmount(""); setImage(null); setPreview(null); setSaved(true);
+      setTimeout(() => { setSaved(false); setIsAdding(false); }, 2000);
     } catch (e: any) {
-      alert("Fehler: " + e.message);
+      alert("FEHLER: " + e.message);
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <section className="px-4">
-      <div className="flex justify-between items-end">
-        <SectionTitle>🧾 Rechnungen</SectionTitle>
-        <button
+    <section>
+      <SectionHeader title="Rechnungen" icon={<Receipt className="w-5 h-5 text-orange-500" />} />
+      <div className="px-5">
+        <button 
           onClick={() => setIsAdding(!isAdding)}
-          className="text-[#FF6B35] bg-[#FF6B35]/10 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 mb-1.5 active:scale-95"
+          className="w-full bg-[#12161F] border border-white/5 rounded-[24px] p-6 flex flex-col items-center gap-3 active:bg-white/5 transition-all shadow-xl"
         >
-          <Receipt className="w-4 h-4" /> Rechnung senden
+          <div className="w-14 h-14 bg-orange-500/10 rounded-full flex items-center justify-center">
+             <Camera className="w-7 h-7 text-orange-500" />
+          </div>
+          <span className="text-white font-bold uppercase tracking-widest text-sm">NEUE RECHNUNG SENDEN</span>
         </button>
-      </div>
 
-      {isAdding && (
-        <div className="bg-[#0F3460] rounded-2xl p-5 space-y-4 border border-[#FF6B35]/20 mt-2 shadow-2xl">
-          <div className="space-y-4">
-             <div className="flex flex-col gap-2">
-                <label className="text-[10px] uppercase font-bold text-slate-500 ml-1">Gekauft bei / Was wurde gekauft?</label>
-                <input
-                    className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700"
-                    placeholder="z.B. Hornbach, Tankstelle..."
+        {isAdding && (
+          <div className="mt-4 bg-[#12161F] rounded-[32px] p-6 border border-orange-500/30 shadow-2xl space-y-6">
+            <div className="space-y-4">
+               <div>
+                  <label className="text-[10px] font-black text-slate-500 mb-2 block uppercase tracking-widest">Wo wurde eingekauft?</label>
+                  <input
+                    className="w-full bg-[#0B0E14] rounded-2xl p-4 text-white outline-none border border-white/10"
+                    placeholder="z.B. Hornbach, Tankstelle"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                />
-             </div>
-             
-             <div className="flex flex-col gap-2">
-                <label className="text-[10px] uppercase font-bold text-slate-500 ml-1">Beleg abfotografieren</label>
-                <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full aspect-video bg-[#16213E] rounded-2xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden relative group"
-                >
-                  {preview ? (
-                    <>
-                      <img src={preview} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                         <Camera className="w-8 h-8 text-white" />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                       <div className="w-12 h-12 bg-[#FF6B35]/10 rounded-full flex items-center justify-center">
-                          <Camera className="w-6 h-6 text-[#FF6B35]" />
-                       </div>
-                       <p className="text-xs text-slate-500 font-bold">Foto machen oder hochladen</p>
-                    </>
-                  )}
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    capture="environment" 
-                    className="hidden" 
-                    ref={fileInputRef} 
-                    onChange={handleFileChange}
                   />
-                </div>
-             </div>
+               </div>
 
-             <div className="flex flex-col gap-2">
-                <label className="text-[10px] uppercase font-bold text-slate-500 ml-1">Betrag (Optional)</label>
-                <input
-                    type="text"
-                    className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700"
-                    placeholder="€"
+               <div>
+                 <label className="text-[10px] font-black text-slate-500 mb-2 block uppercase tracking-widest">Beleg fotografieren</label>
+                 <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="aspect-square bg-black/40 rounded-3xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center overflow-hidden relative"
+                 >
+                    {preview ? (
+                      <img src={preview} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-center p-6">
+                         <Upload className="w-10 h-10 text-slate-700 mx-auto mb-2" />
+                         <p className="text-xs text-slate-600 font-bold uppercase tracking-widest">Klicken zum Foto machen</p>
+                      </div>
+                    )}
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} capture="environment" accept="image/*" className="hidden" />
+                 </div>
+               </div>
+
+               <div>
+                  <label className="text-[10px] font-black text-slate-500 mb-2 block uppercase tracking-widest">Betrag (Optional)</label>
+                  <input
+                    className="w-full bg-[#0B0E14] rounded-2xl p-4 text-white outline-none border border-white/10"
+                    placeholder="0.00 €"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                />
-             </div>
+                  />
+               </div>
+            </div>
+
+            <div className="flex gap-3">
+               <button onClick={() => setIsAdding(false)} className="flex-1 py-5 rounded-2xl font-bold text-slate-500 bg-white/5 active:bg-white/10">ABBRECHEN</button>
+               <button 
+                  onClick={handleSend}
+                  disabled={!title.trim() || saving}
+                  className={`flex-[2] py-5 rounded-2xl font-bold text-white transition-all shadow-xl ${saved ? 'bg-green-500' : 'bg-orange-500 shadow-orange-500/20'} active:scale-95`}
+               >
+                 {saving ? "SENDET..." : saved ? "✓ GESENDET" : "JETZT SENDEN"}
+               </button>
+            </div>
           </div>
-          <button 
-            onClick={handleSend}
-            disabled={!title.trim() || saving || saved}
-            className={`w-full py-5 rounded-2xl font-bold transition-all ${saved ? "bg-green-500" : "bg-[#FF6B35]"} text-white active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/10`}
-          >
-            {saving ? (
-              <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Sende...</>
-            ) : saved ? (
-              "✓ Erfolgreich gesendet"
-            ) : (
-              <><Upload className="w-5 h-5" /> Rechnung abschicken</>
-            )}
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }
 
-function HoursSection({ projectId, employeeName }: { projectId: string; employeeName: string; }) {
+function HoursSection({ projectId, employeeName }: { projectId: string; employeeName: string }) {
   const demoDb = useDemoDb();
   const [startTime, setStartTime] = useState("07:00");
   const [endTime, setEndTime] = useState("16:00");
   const [pause, setPause] = useState("30");
   const [report, setReport] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const workHours = demoDb.db.work_hours.filter((wh) => wh.projectId === projectId && wh.employeeName === employeeName);
@@ -371,69 +384,78 @@ function HoursSection({ projectId, employeeName }: { projectId: string; employee
 
   const handleSave = async () => {
     const h = calculateHours();
+    setSaving(true);
     await demoDb.addWorkHour({
       projectId, employeeName, hours: h, date: new Date(date), startTime, endTime, pause: parseInt(pause) || 0, report
     });
     setSaved(true);
     setReport("");
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => { setSaved(false); setSaving(false); }, 2000);
   };
 
   return (
-    <section className="border-t border-[#0F3460] mt-4">
-      <SectionTitle>⏱ Arbeitszeiten</SectionTitle>
-      <div className="px-4 pb-3">
-        <div className="bg-[#0F3460] rounded-2xl p-4 space-y-4 shadow-lg border border-white/5">
-          <div className="grid grid-cols-2 gap-3">
-            <input type="date" className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm border border-slate-700 outline-none" value={date} onChange={(e) => setDate(e.target.value)} />
-            <input type="number" className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm border border-slate-700 outline-none" value={pause} onChange={(e) => setPause(e.target.value)} placeholder="Pause" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <input type="time" className="w-full bg-[#16213E] rounded-xl p-3 text-white text-lg border border-slate-700 outline-none" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-            <input type="time" className="w-full bg-[#16213E] rounded-xl p-3 text-white text-lg border border-slate-700 outline-none" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-slate-500 text-[10px] uppercase font-bold mb-1 ml-1 tracking-widest">Tagesbericht</label>
-            <textarea
-              className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700 resize-none focus:border-[#FF6B35]/50 transition-colors"
-              rows={3}
-              placeholder="Was wurde heute gemacht?"
-              value={report}
-              onChange={(e) => setReport(e.target.value)}
-            />
-          </div>
-          <button onClick={handleSave} className={`w-full font-bold py-4 rounded-xl text-white transition-all shadow-lg active:scale-95 ${saved ? "bg-green-500" : "bg-[#FF6B35]"}`}>
-            {saved ? "✓ Gespeichert" : `Buchen (${calculateHours()}h)`}
-          </button>
+    <section>
+      <SectionHeader title="Zeiterfassung" icon={<ClockIcon className="w-5 h-5 text-orange-500" />} />
+      <div className="px-5">
+        <div className="bg-[#12161F] rounded-[32px] p-6 space-y-6 shadow-xl border border-white/5">
+           <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-500 mb-2 block uppercase tracking-widest">Datum</label>
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-[#0B0E14] rounded-2xl p-4 text-white text-sm border border-white/10 outline-none" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-500 mb-2 block uppercase tracking-widest">Pause (Min)</label>
+                <input type="number" value={pause} onChange={(e) => setPause(e.target.value)} className="w-full bg-[#0B0E14] rounded-2xl p-4 text-white text-sm border border-white/10 outline-none" />
+              </div>
+           </div>
+
+           <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-500 mb-2 block uppercase tracking-widest">Start</label>
+                <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full bg-[#0B0E14] rounded-2x p-4 text-white text-2xl font-black border border-white/10 outline-none" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-500 mb-2 block uppercase tracking-widest">Ende</label>
+                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-full bg-[#0B0E14] rounded-2xl p-4 text-white text-2xl font-black border border-white/10 outline-none" />
+              </div>
+           </div>
+
+           <div>
+              <label className="text-[10px] font-black text-slate-500 mb-2 block uppercase tracking-widest">Woran wurde heute gearbeitet?</label>
+              <textarea 
+                rows={3}
+                className="w-full bg-[#0B0E14] rounded-2xl p-4 text-white text-md border border-white/10 outline-none resize-none"
+                placeholder="Bericht schreiben..."
+                value={report}
+                onChange={(e) => setReport(e.target.value)}
+              />
+           </div>
+
+           <button 
+              onClick={handleSave}
+              disabled={saving}
+              className={`w-full py-5 rounded-2xl font-black text-xl transition-all shadow-xl active:scale-95 ${saved ? 'bg-green-500' : 'bg-orange-500 shadow-orange-500/20'}`}
+           >
+              {saving ? "BUCHT..." : saved ? "✓ BUCHUNG ERFOLGT" : `JETZT BUCHEN (${calculateHours()}h)`}
+           </button>
         </div>
 
-        <div className="mt-6 space-y-3">
-          {workHours.length > 0 && <p className="text-slate-500 text-[10px] uppercase font-bold ml-1 tracking-widest">Letzte Buchungen</p>}
-          {[...workHours].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((wh) => (
-            <div key={wh.id} className="bg-[#0F3460] rounded-2xl p-4 border border-white/5">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-white font-bold text-sm">
-                    {format(new Date(wh.date), "dd.MM.yyyy")}
-                  </p>
-                  {wh.startTime && (
-                    <p className="text-slate-500 text-[10px] mt-1">
-                      {wh.startTime} - {wh.endTime} ({wh.pause} min Pause)
-                    </p>
-                  )}
-                  {wh.report && (
-                    <p className="text-slate-300 text-xs mt-2 italic bg-black/20 p-2 rounded-lg border-l-2 border-orange-500">
-                      {wh.report}
-                    </p>
-                  )}
+        {workHours.length > 0 && (
+          <div className="mt-8 space-y-4">
+             <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] ml-2">Deine letzten Buchungen</p>
+             {[...workHours].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 3).map((wh) => (
+                <div key={wh.id} className="bg-[#12161F]/50 rounded-[24px] p-5 border border-white/5 flex justify-between items-center">
+                   <div>
+                     <p className="text-white font-bold text-sm">{format(new Date(wh.date), "dd.MM.yyyy")}</p>
+                     <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">{wh.hours}h gearbeitet</p>
+                   </div>
+                   <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center">
+                      <ClockIcon className="w-5 h-5 text-slate-500" />
+                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-orange-400 font-bold text-lg">{wh.hours}h</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+             ))}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -446,18 +468,20 @@ function WarningsSection({ projectId }: { projectId: string }) {
   if (lowMaterials.length === 0) return null;
 
   return (
-    <section className="px-4 mt-6">
-       <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
-          <SectionTitle><span className="text-red-400">🚨 Material dringend!</span></SectionTitle>
-          <div className="space-y-2 mt-2">
-             {lowMaterials.map(m => (
-               <div key={m.id} className="flex justify-between items-center text-sm">
-                  <span className="text-white font-medium">{m.name}</span>
-                  <span className="text-red-400 font-bold">{m.quantity} / {m.minimum} {m.unit}</span>
-               </div>
-             ))}
+    <div className="px-5 pb-10">
+       <div className="bg-red-500/10 border border-red-500/20 rounded-[32px] p-6 flex items-start gap-4 shadow-xl">
+          <div className="p-3 bg-red-500/20 rounded-2xl">
+             <AlertCircle className="w-6 h-6 text-red-500" />
+          </div>
+          <div>
+            <h4 className="text-red-500 font-bold mb-2 uppercase tracking-widest text-xs">Achtung: Materialmangel!</h4>
+            <div className="space-y-1">
+               {lowMaterials.map(m => (
+                 <p key={m.id} className="text-white text-sm font-bold">• {m.name} ({m.quantity} / {m.minimum} {m.unit})</p>
+               ))}
+            </div>
           </div>
        </div>
-    </section>
+    </div>
   );
 }
