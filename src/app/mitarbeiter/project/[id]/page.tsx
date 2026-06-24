@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, MapPin, HardHat, ChevronRight, FileText, Plus, Receipt } from "lucide-react";
+import { ArrowLeft, MapPin, HardHat, ChevronRight, FileText, Plus, Receipt, Camera, Upload, X } from "lucide-react";
 import { useEmployee } from "@/context/EmployeeContext";
 import { useDemoDb } from "@/context/DemoDbContext";
 import type { Material, WorkHour, Message, Project } from "@/lib/types";
@@ -196,25 +196,67 @@ function InvoiceSection({ projectId, employeeName }: { projectId: string; employ
   const [isAdding, setIsAdding] = useState(false);
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
+  const [image, setImage] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSend = async () => {
-    if (!title.trim() || !amount.trim()) return;
-    await demoDb.addMessage({
-      title: `${employeeName}: ${title}`,
-      body: `Betrag: ${amount} €\nNotiz: ${note}`,
-      targetType: "project",
-      targetProjectIds: [projectId]
-    });
-    setTitle("");
-    setAmount("");
-    setNote("");
-    setSaved(true);
-    setTimeout(() => {
-      setSaved(false);
-      setIsAdding(false);
-    }, 2000);
+    if (!title.trim() || saving) return;
+    setSaving(true);
+    
+    try {
+      let imageUrl = "";
+      
+      if (image) {
+        // Upload image to Supabase
+        const formData = new FormData();
+        formData.append('file', image);
+        formData.append('path', `inv_${Date.now()}_${image.name.replace(/\s/g, '_')}`);
+        
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!uploadRes.ok) throw new Error("Bild-Upload fehlgeschlagen. Hast du den Bucket 'invoices' erstellt?");
+        const { url } = await uploadRes.json();
+        imageUrl = url;
+      }
+
+      await demoDb.addMessage({
+        title: `${employeeName}: ${title}`,
+        body: amount ? `${amount} €` : "",
+        targetType: "project",
+        targetProjectIds: [projectId],
+        metadata: { imageUrl } // Wir speichern die Bild-URL in metadata
+      });
+
+      setTitle("");
+      setAmount("");
+      setImage(null);
+      setPreview(null);
+      setSaved(true);
+      setTimeout(() => {
+        setSaved(false);
+        setIsAdding(false);
+      }, 2000);
+    } catch (e: any) {
+      alert("Fehler: " + e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -230,35 +272,73 @@ function InvoiceSection({ projectId, employeeName }: { projectId: string; employ
       </div>
 
       {isAdding && (
-        <div className="bg-[#0F3460] rounded-2xl p-5 space-y-4 border border-[#FF6B35]/20 mt-2">
-          <div className="space-y-3">
-             <input
-                className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700"
-                placeholder="Was wurde gekauft? (z.B. Hornbach)"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-             />
-             <input
-                type="text"
-                className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700"
-                placeholder="Betrag in €"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-             />
-             <textarea
-                className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700 resize-none"
-                placeholder="Zusätzliche Notizen..."
-                rows={2}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-             />
+        <div className="bg-[#0F3460] rounded-2xl p-5 space-y-4 border border-[#FF6B35]/20 mt-2 shadow-2xl">
+          <div className="space-y-4">
+             <div className="flex flex-col gap-2">
+                <label className="text-[10px] uppercase font-bold text-slate-500 ml-1">Gekauft bei / Was wurde gekauft?</label>
+                <input
+                    className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700"
+                    placeholder="z.B. Hornbach, Tankstelle..."
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                />
+             </div>
+             
+             <div className="flex flex-col gap-2">
+                <label className="text-[10px] uppercase font-bold text-slate-500 ml-1">Beleg abfotografieren</label>
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full aspect-video bg-[#16213E] rounded-2xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden relative group"
+                >
+                  {preview ? (
+                    <>
+                      <img src={preview} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                         <Camera className="w-8 h-8 text-white" />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                       <div className="w-12 h-12 bg-[#FF6B35]/10 rounded-full flex items-center justify-center">
+                          <Camera className="w-6 h-6 text-[#FF6B35]" />
+                       </div>
+                       <p className="text-xs text-slate-500 font-bold">Foto machen oder hochladen</p>
+                    </>
+                  )}
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    capture="environment" 
+                    className="hidden" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange}
+                  />
+                </div>
+             </div>
+
+             <div className="flex flex-col gap-2">
+                <label className="text-[10px] uppercase font-bold text-slate-500 ml-1">Betrag (Optional)</label>
+                <input
+                    type="text"
+                    className="w-full bg-[#16213E] rounded-xl p-3 text-white text-sm outline-none border border-slate-700"
+                    placeholder="€"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                />
+             </div>
           </div>
           <button 
             onClick={handleSend}
-            disabled={!title.trim() || !amount.trim() || saved}
-            className={`w-full py-4 rounded-xl font-bold transition-all ${saved ? "bg-green-500" : "bg-[#FF6B35]"} text-white active:scale-95`}
+            disabled={!title.trim() || saving || saved}
+            className={`w-full py-5 rounded-2xl font-bold transition-all ${saved ? "bg-green-500" : "bg-[#FF6B35]"} text-white active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/10`}
           >
-            {saved ? "✓ Gesendet" : "Rechnung abschicken"}
+            {saving ? (
+              <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Sende...</>
+            ) : saved ? (
+              "✓ Erfolgreich gesendet"
+            ) : (
+              <><Upload className="w-5 h-5" /> Rechnung abschicken</>
+            )}
           </button>
         </div>
       )}

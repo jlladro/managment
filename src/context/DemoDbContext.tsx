@@ -37,7 +37,8 @@ interface DemoDbContextType {
   addUser: (data: Omit<Employee, "id">) => Promise<Employee>;
   updateUser: (id: string, data: Partial<Employee>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
-  addMessage: (data: any) => any;
+  addMessage: (data: any) => Promise<any>;
+  deleteMessage: (id: string) => Promise<void>;
   addNotification: (data: any) => void;
 }
 
@@ -65,7 +66,7 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
           })),
           users: data.users || [],
           messages: (data.messages || []).map((m:any) => ({
-            id: m.id, title: m.title, body: m.body, targetType: m.target_type || m.targetType, targetProjectIds: m.target_project_ids || m.targetProjectIds || [], createdAt: new Date(m.created_at || m.createdAt || Date.now())
+            id: m.id, title: m.title, body: m.body, targetType: m.target_type || m.targetType, targetProjectIds: m.target_project_ids || m.targetProjectIds || [], createdAt: new Date(m.created_at || m.createdAt || Date.now()), metadata: m.metadata || {}
           }))
         }));
       }
@@ -185,7 +186,7 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
   const addMessage = async (data: any) => {
     const msg = { ...data, id: generateId("msg"), createdAt: new Date() };
     updateLocal(prev => ({ ...prev, messages: [msg, ...prev.messages] }));
-    const res = await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'messages', data: { id: msg.id, title: data.title, body: data.body, target_type: data.targetType, target_project_ids: data.targetProjectIds } }) });
+    const res = await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'messages', data: { id: msg.id, title: data.title, body: data.body, target_type: data.targetType, target_project_ids: data.targetProjectIds, metadata: data.metadata || {} } }) });
     if (!res.ok) {
        const err = await res.json();
        alert("Fehler beim Senden der Nachricht: " + (err.error || res.statusText));
@@ -193,12 +194,17 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
     return msg;
   };
 
+  const deleteMessage = async (id: string) => {
+    updateLocal(prev => ({ ...prev, messages: prev.messages.filter(m => m.id !== id) }));
+    await fetch('/api/db', { method: 'DELETE', body: JSON.stringify({ table: 'messages', id }) });
+  };
+
   return (
     <DemoDbContext.Provider value={{
       ready, db, reset: () => {}, addProject, updateProject, deleteProject,
       addMaterial, updateMaterial: async()=>{}, updateMaterialQuantity, deleteMaterial,
       addWorkHour, deleteWorkHour, addUser, updateUser, deleteUser,
-      addMessage, addNotification: ()=>{}
+      addMessage, deleteMessage, addNotification: ()=>{}
     }}>
       {children}
     </DemoDbContext.Provider>

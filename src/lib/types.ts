@@ -32,9 +32,10 @@ export interface Message {
   id: string;
   title: string;
   body: string;
-  targetType: "all" | "project";
+  targetType: "all" | "project" | "employee";
   targetProjectIds: string[];
-  createdAt?: Date;
+  createdAt: Date;
+  metadata?: any;
 }
 
 export interface Employee {
