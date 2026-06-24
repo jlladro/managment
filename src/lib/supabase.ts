@@ -1,13 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 
+// Wir nutzen jetzt wieder den NEUEN Schlüssel-Typ, da dein Projekt offensichtlich darauf besteht.
 const supabaseUrl = 'https://dqgaejjdiggdwmcsmyju.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxZ2FlampkaWdnZHdtY3NteWp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMTkxMDAsImV4cCI6MjA5Nzc5NTEwMH0.K0oI7oh6gmUQGwk6WzsuMQKxcAXqDsZd4GeRchbbuW0'
+const supabaseAnonKey = 'sb_publishable_JyLGJEa05SvhhwUN50EvDA_gayrvPnW'
 
-// Debug-Check für den User
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: {
+    headers: {
+      'apikey': supabaseAnonKey,
+      'Authorization': `Bearer ${supabaseAnonKey}`
+    }
+  }
+})
+
 if (typeof window !== 'undefined') {
-  console.log("Aktiver Supabase Key Check:", supabaseAnonKey.substring(0, 8));
-  // Wir zeigen es kurz als Alert, damit wir 100% sicher sind
-  (window as any).supabaseDebugKey = supabaseAnonKey.substring(0, 5);
+  (window as any).supabaseDebugKey = "SB_NEW";
 }
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
