@@ -7,7 +7,6 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
-// VAPID Keys für Push
 webpush.setVapidDetails(
   'mailto:jlladrovcijon@gmail.com',
   'BOa-eL0GenxZGWFwYz92_Q44l-__KfnxhNaCVq4avdCnunPKW6Ud1hmY1HKfzYLk6BNQkf3dqFZ6O51bxQPJJJw',
@@ -18,14 +17,17 @@ async function triggerPush(title: string, body: string, url: string = '/dashboar
   let count = 0;
   let names = [];
   try {
-    const { data: users, error } = await supabase.from('users').select('*');
+    const { data: users, error: fetchError } = await supabase.from('users').select('*');
+    if (fetchError) return { count: 0, report: "DB-FEHLER: " + fetchError.message };
+
     if (users) {
       for (const user of users) {
-        const hasSub = !!user.metadata?.pushSubscription;
-        names.push(`${user.name} (${hasSub ? 'MIT PUSH' : 'KEIN PUSH'})`);
+        const hasSub = !!(user.metadata?.pushSubscription || user.Metadata?.pushSubscription);
+        names.push(`${user.name} (${hasSub ? 'OK' : 'KEIN PUSH'})`);
         if (hasSub) {
           try {
-            await webpush.sendNotification(user.metadata.pushSubscription, JSON.stringify({ title, body, url }));
+            const sub = user.metadata?.pushSubscription || user.Metadata?.pushSubscription;
+            await webpush.sendNotification(sub, JSON.stringify({ title, body, url }));
             count++;
           } catch (err: any) {
             console.error("Push failed", user.name, err.message);
@@ -33,8 +35,8 @@ async function triggerPush(title: string, body: string, url: string = '/dashboar
         }
       }
     }
-  } catch (e: any) { names.push("FEHLER: " + e.message); }
-  return { count, report: names.join(", ") || "Keine User gefunden" };
+  } catch (e: any) { names.push("CRASH: " + e.message); }
+  return { count, report: names.join(", ") || "Leer" };
 }
 
 export async function GET() {
@@ -55,29 +57,38 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const { table, data } = await req.json();
-    const { error } = await supabase.from(table).upsert(data);
     
-    if (error) throw error;
+    // Wir loggen was reinkommt (nur für uns im Fehlerfall)
+    console.log(`API POST [${table}]:`, data);
+
+    const { error } = await supabase.from(table).upsert(data, { onConflict: 'id' });
+    
+    if (error) {
+       console.error("Supabase UPSERT Error:", error);
+       return NextResponse.json({ error: `DB Fehler: ${error.message} (Code: ${error.code})` }, { status: 500 });
+    }
 
     let debug = "";
     let pushCount = 0;
+    
+    // Wir prüfen bei JEDEM POST kurz nach Push-Empfängern im Test-Modus
     if (table === 'messages' && (!data.id.includes('msg_') || data.id.includes('test_'))) {
-       const res = await triggerPush(data.title || "Neue Nachricht", data.body || "", "/dashboard/invoices");
+       const res = await triggerPush(data.title || "Test", data.body || "", "/dashboard/invoices");
        pushCount = res.count;
        debug = res.report;
     } else if (table === 'work_hours') {
-       const res = await triggerPush("Neuer Tagesbericht", `${data.employeeName} hat gebucht`, "/dashboard/reports");
+       const res = await triggerPush("Bericht", `${data.employeeName}`, "/dashboard/reports");
        pushCount = res.count;
        debug = res.report;
     } else if (table === 'materials' && data.quantity <= (data.minimum || 0) && (data.minimum || 0) > 0) {
-       const res = await triggerPush("Material Warnung ⚠️", `${data.name} ist fast leer!`, "/dashboard/projects");
+       const res = await triggerPush("Material!", `${data.name}`, "/dashboard/projects");
        pushCount = res.count;
        debug = res.report;
     }
 
     return NextResponse.json({ success: true, pushCount, debug });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: "Server-Crash: " + e.message }, { status: 500 });
   }
 }
 
