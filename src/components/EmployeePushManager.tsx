@@ -79,8 +79,11 @@ export default function EmployeePushManager() {
     }
   };
 
-  if (!employeeName) return null;
-  if (permission === 'granted' && !dbError) return null;
+  const user = demoDb.db.users.find(u => u.name === employeeName);
+  const hasSubInDb = !!user?.metadata?.pushSubscription;
+
+  if (!employeeName || !demoDb.ready) return null;
+  if (permission === 'granted' && hasSubInDb && !dbError) return null;
   if (permission === 'denied' && !dbError) return null;
 
   return (
