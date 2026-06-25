@@ -1,10 +1,37 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { HardHat, Users, ShieldCheck } from "lucide-react";
+import { HardHat, Users, ShieldCheck, Loader2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Home() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    try {
+      const isEmployee = localStorage.getItem("baustellen_employee_name");
+      if (isEmployee) {
+        router.replace("/mitarbeiter/home");
+        return;
+      }
+      if (isAuthenticated) {
+        router.replace("/dashboard");
+        return;
+      }
+    } catch (e) {}
+    setChecking(false);
+  }, [router, isAuthenticated]);
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
+        <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black">
