@@ -23,31 +23,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(AUTH_KEY);
-    setIsAuthenticated(stored === "true");
-    setLoaded(true);
+    try {
+      const stored = localStorage.getItem(AUTH_KEY);
+      if (stored === "true") {
+        setIsAuthenticated(true);
+      }
+    } catch (e) {
+      console.error("Auth storage read failed");
+    } finally {
+      setLoaded(true);
+    }
   }, []);
 
   const login = (secret: string): boolean => {
-    const adminSecret =
-      process.env.NEXT_PUBLIC_ADMIN_SECRET || "chef2024";
+    const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET || "chef2024";
     if (secret === adminSecret) {
-      localStorage.setItem(AUTH_KEY, "true");
-      setIsAuthenticated(true);
-      return true;
+      try {
+        localStorage.setItem(AUTH_KEY, "true");
+        setIsAuthenticated(true);
+        return true;
+      } catch (e) {
+        console.error("Auth storage write failed");
+      }
     }
     return false;
   };
 
   const logout = () => {
-    localStorage.removeItem(AUTH_KEY);
-    setIsAuthenticated(false);
+    try {
+      localStorage.removeItem(AUTH_KEY);
+      setIsAuthenticated(false);
+    } catch (e) {
+      console.error("Auth storage clear failed");
+    }
   };
 
   if (!loaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+      <div className="min-h-screen flex items-center justify-center bg-[#0B0E14]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500" />
       </div>
     );
   }

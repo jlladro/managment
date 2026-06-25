@@ -23,24 +23,41 @@ export function EmployeeProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    setName(localStorage.getItem(STORAGE_KEY));
-    setLoaded(true);
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setName(stored);
+      }
+    } catch (e) {
+      console.error("Local storage access failed");
+    } finally {
+      setLoaded(true);
+    }
   }, []);
 
   const setEmployeeName = useCallback((name: string) => {
-    localStorage.setItem(STORAGE_KEY, name);
-    setName(name);
+    try {
+      localStorage.setItem(STORAGE_KEY, name);
+      setName(name);
+    } catch (e) {
+      console.error("Failed to save employee name");
+    }
   }, []);
 
   const clearEmployee = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    setName(null);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      setName(null);
+    } catch (e) {
+      console.error("Failed to clear employee name");
+    }
   }, []);
 
+  // Während wir laden, zeigen wir den Spinner im neuen Premium-Look
   if (!loaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#1A1A2E]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF6B35]" />
+      <div className="min-h-screen flex items-center justify-center bg-[#0B0E14]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500" />
       </div>
     );
   }
