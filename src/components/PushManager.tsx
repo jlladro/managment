@@ -81,7 +81,7 @@ export default function PushManager() {
         id: "test_" + Date.now()
       });
       
-      alert(`Test-Signal gesendet! Der Server hat ${data.pushCount || 0} registrierte Handys gefunden.`);
+      alert(`Test-Signal gesendet!\nErgebnis: ${data.pushCount || 0} erfolgreich.\nDetails: ${data.debug || 'Keine Infos'}`);
     } catch (e: any) {
       alert("Test fehlgeschlagen: " + e.message);
     } finally {
