@@ -7,13 +7,13 @@ import { useEmployee } from "@/context/EmployeeContext";
 import { useDemoDb } from "@/context/DemoDbContext";
 
 export default function HomePage() {
-  const { employeeName, clearEmployee } = useEmployee();
+  const { employeeName, clearEmployee, isReady } = useEmployee();
   const demoDb = useDemoDb();
   const router = useRouter();
   const [search, setSearch] = useState("");
 
   const projects = [...demoDb.db.projects].sort((a, b) => a.name.localeCompare(b.name));
-  const loading = !demoDb.ready;
+  const loading = !demoDb.ready || !isReady;
 
   const filtered = useMemo(() => {
     if (!search) return projects;
@@ -26,12 +26,18 @@ export default function HomePage() {
   }, [projects, search]);
 
   useEffect(() => {
-    if (!employeeName && !loading) {
+    if (isReady && !employeeName) {
       router.replace("/mitarbeiter/setup");
     }
-  }, [employeeName, router, loading]);
+  }, [employeeName, router, isReady]);
 
-  if (!employeeName) return null;
+  if (!isReady || (isReady && !employeeName)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0B0E14]">
+         <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-[#0B0E14] min-h-screen">

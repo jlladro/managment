@@ -81,7 +81,17 @@ export async function POST(req: Request) {
        pushCount = res.count;
        debug = res.report;
     } else if (table === 'materials' && data.quantity <= (data.minimum || 0) && (data.minimum || 0) > 0) {
-       const res = await triggerPush("Material!", `${data.name}`, "/dashboard/projects");
+       const diff = (data.minimum || 0) - data.quantity;
+       const missingText = diff === 0 ? "Mindestmenge erreicht" : `${diff} ${data.unit || ''} zu wenig`;
+       
+       // 5 Sekunden warten (Delay)
+       await new Promise(resolve => setTimeout(resolve, 5000));
+       
+       const res = await triggerPush(
+         "Material-Warnung! ⚠️", 
+         `${data.name}: ${missingText}! (Aktuell: ${data.quantity})`, 
+         "/dashboard/projects"
+       );
        pushCount = res.count;
        debug = res.report;
     }

@@ -1,17 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { HardHat, User, ArrowRight, Loader2 } from "lucide-react";
 import { useEmployee } from "@/context/EmployeeContext";
 import { useDemoDb } from "@/context/DemoDbContext";
 
 export default function SetupPage() {
-  const { setEmployeeName } = useEmployee();
+  const { employeeName, setEmployeeName, isReady } = useEmployee();
   const demoDb = useDemoDb();
   const router = useRouter();
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (isReady && employeeName) {
+      router.replace("/mitarbeiter/home");
+    }
+  }, [isReady, employeeName, router]);
+
+  if (!isReady || (isReady && employeeName)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0B0E14]">
+         <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
+      </div>
+    );
+  }
 
   const handleContinue = async () => {
     if (!name.trim() || saving) return;

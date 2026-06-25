@@ -13,6 +13,7 @@ interface EmployeeContextType {
   employeeName: string | null;
   setEmployeeName: (name: string) => void;
   clearEmployee: () => void;
+  isReady: boolean;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | null>(null);
@@ -20,7 +21,7 @@ const STORAGE_KEY = "baustellen_employee_name";
 
 export function EmployeeProvider({ children }: { children: ReactNode }) {
   const [employeeName, setName] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     try {
@@ -31,7 +32,7 @@ export function EmployeeProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.error("Local storage access failed");
     } finally {
-      setLoaded(true);
+      setIsReady(true);
     }
   }, []);
 
@@ -53,18 +54,9 @@ export function EmployeeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Während wir laden, zeigen wir den Spinner im neuen Premium-Look
-  if (!loaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0B0E14]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500" />
-      </div>
-    );
-  }
-
   return (
     <EmployeeContext.Provider
-      value={{ employeeName, setEmployeeName, clearEmployee }}
+      value={{ employeeName, setEmployeeName, clearEmployee, isReady }}
     >
       {children}
     </EmployeeContext.Provider>

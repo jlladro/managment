@@ -83,14 +83,14 @@ export default function PushManager() {
   const testPush = async () => {
     setTesting(true);
     try {
-      const data = await demoDb.addMessage({
+      await demoDb.addMessage({
         title: "Test-Signal 🔔",
         body: "Die Verbindung zum Chef-Handy steht! 🎉",
         targetType: "employee",
         targetProjectIds: [],
         id: "test_" + Date.now()
       });
-      alert(`Test gesendet!\nEmpfänger online: ${data.pushCount}\nListe: ${data.debug}`);
+      alert("Test-Signal gesendet! 🎉\nDeine Benachrichtigungen sind jetzt scharf geschaltet.");
     } catch (e: any) {
       alert("Test fehlgeschlagen: " + e.message);
     } finally {
