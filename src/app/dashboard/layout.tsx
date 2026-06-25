@@ -35,17 +35,17 @@ export default function DashboardLayout({
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Header */}
-        <header className="lg:hidden h-16 bg-slate-900/50 backdrop-blur-md border-b border-slate-800 flex items-center justify-between px-4 sticky top-0 z-30">
+        {/* Mobile Header with Safe Area support */}
+        <header className="lg:hidden bg-slate-900/80 backdrop-blur-xl border-b border-white/5 flex items-end justify-between px-6 pb-4 pt-[env(safe-area-inset-top)] h-[calc(80px+env(safe-area-inset-top))] sticky top-0 z-30 shadow-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
-              <HardHat className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
+              <HardHat className="w-6 h-6 text-white" />
             </div>
-            <span className="font-bold text-white text-sm uppercase tracking-wider">Management</span>
+            <span className="font-black text-white text-xs uppercase tracking-[0.2em]">Management</span>
           </div>
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="p-2 text-slate-400 hover:text-white transition-colors"
+            className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-slate-400 active:bg-orange-500 active:text-white transition-all shadow-inner"
           >
             <Menu className="w-6 h-6" />
           </button>

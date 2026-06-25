@@ -81,19 +81,32 @@ export async function POST(req: Request) {
        pushCount = res.count;
        debug = res.report;
     } else if (table === 'materials' && data.quantity <= (data.minimum || 0) && (data.minimum || 0) > 0) {
-       const diff = (data.minimum || 0) - data.quantity;
-       const missingText = diff === 0 ? "Mindestmenge erreicht" : `${diff} ${data.unit || ''} zu wenig`;
+       // SPAM SCHUTZ: Wir holen das Material um zu sehen wann wir zuletzt gewarnt haben
+       const { data: existingMaterial } = await supabase.from('materials').select('last_warned_at').eq('id', data.id).single();
        
-       // 5 Sekunden warten (Delay)
-       await new Promise(resolve => setTimeout(resolve, 5000));
+       const lastWarned = existingMaterial?.last_warned_at ? new Date(existingMaterial.last_warned_at).getTime() : 0;
+       const now = Date.now();
        
-       const res = await triggerPush(
-         "Material-Warnung! ⚠️", 
-         `${data.name}: ${missingText}! (Aktuell: ${data.quantity})`, 
-         "/dashboard/projects"
-       );
-       pushCount = res.count;
-       debug = res.report;
+       // Nur warnen wenn die letzte Warnung länger als 60 Sekunden her ist
+       if (now - lastWarned > 60000) {
+         const diff = (data.minimum || 0) - data.quantity;
+         const missingText = diff === 0 ? "Mindestmenge erreicht" : `${diff} ${data.unit || ''} zu wenig`;
+         
+         // 5 Sekunden warten damit der Mitarbeiter fertig tippen kann
+         await new Promise(resolve => setTimeout(resolve, 5000));
+         
+         const res = await triggerPush(
+           "Material-Warnung! ⚠️", 
+           `${data.name}: ${missingText}! (Aktuell: ${data.quantity})`, 
+           "/dashboard/projects"
+         );
+         
+         // Zeitstempel aktualisieren
+         await supabase.from('materials').update({ last_warned_at: new Date().toISOString() }).eq('id', data.id);
+         
+         pushCount = res.count;
+         debug = res.report;
+       }
     }
 
     return NextResponse.json({ success: true, pushCount, debug });
