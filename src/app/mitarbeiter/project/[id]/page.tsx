@@ -218,7 +218,7 @@ function MaterialSection({ projectId }: { projectId: string }) {
                    <button onClick={() => {
                       const val = prompt(`Warnschwelle für ${m.name}:`, String(m.minimum || 0));
                       if (val) demoDb.updateMaterial(m.id, { minimum: parseInt(val) || 0 });
-                   }} className="text-orange-500 opacity-60">⚓ SCHWELLE ANPASSEN</button>
+                   }} className="text-red-500 opacity-60 font-bold">⚓ SCHWELLE ANPASSEN</button>
                 </div>
               </div>
             );
