@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
+import Link from "next/link";
 
 interface ModalProps {
   open: boolean;
@@ -40,19 +41,20 @@ interface StatCardProps {
   icon: ReactNode;
   color?: string;
   subtitle?: string;
+  href?: string;
 }
 
-export function StatCard({ title, value, icon, color = "orange", subtitle }: StatCardProps) {
+export function StatCard({ title, value, icon, color = "orange", subtitle, href }: StatCardProps) {
   const colorClasses: Record<string, string> = {
-    orange: "bg-orange-500/15 text-orange-400",
-    green: "bg-green-500/15 text-green-400",
-    red: "bg-red-500/15 text-red-400",
-    blue: "bg-blue-500/15 text-blue-400",
-    yellow: "bg-yellow-500/15 text-yellow-400",
+    orange: "bg-orange-500/15 text-orange-400 border-orange-500/20",
+    green: "bg-green-500/15 text-green-400 border-green-500/20",
+    red: "bg-red-500/15 text-red-400 border-red-500/20",
+    blue: "bg-blue-500/15 text-blue-400 border-blue-500/20",
+    yellow: "bg-yellow-500/15 text-yellow-400 border-yellow-500/20",
   };
 
-  return (
-    <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+  const content = (
+    <div className={`bg-slate-800 rounded-2xl p-6 border border-slate-700 transition-all ${href ? 'hover:border-slate-500 hover:shadow-lg active:scale-95 cursor-pointer' : ''}`}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-slate-400 mb-1">{title}</p>
@@ -67,6 +69,12 @@ export function StatCard({ title, value, icon, color = "orange", subtitle }: Sta
       </div>
     </div>
   );
+
+  if (href) {
+    return <Link href={href} className="block">{content}</Link>;
+  }
+
+  return content;
 }
 
 export function LoadingSpinner() {

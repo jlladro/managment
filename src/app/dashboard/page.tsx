@@ -18,7 +18,8 @@ export default function DashboardPage() {
   const activeProjects = projects.filter((p) => p.status === "active");
   const lowMaterials = materials.filter((m) => m.quantity <= m.minimum && m.minimum > 0);
   
-  const totalEmployees = users.length;
+  const activeEmployees = users.filter((u) => u.active);
+  const totalEmployees = activeEmployees.length;
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -42,10 +43,10 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-        <StatCard title="Baustellen" value={activeProjects.length} subtitle={`${projects.length} gesamt`} icon={<Building2 className="w-6 h-6" />} color="blue" />
-        <StatCard title="Materialwarnungen" value={lowMaterials.length} subtitle="Unter Mindestwert" icon={<AlertTriangle className="w-6 h-6" />} color={lowMaterials.length > 0 ? "red" : "green"} />
-        <StatCard title="Mitarbeiter" value={totalEmployees} subtitle="Gesamtes Team" icon={<Users className="w-6 h-6" />} color="green" />
-        <StatCard title="Stunden (Heute)" value={`${totalTodayHours}h`} subtitle={`${totalAllHours}h gesamt`} icon={<Clock className="w-6 h-6" />} color="orange" />
+        <StatCard href="/dashboard/projects" title="Baustellen" value={activeProjects.length} subtitle={`${projects.length} gesamt`} icon={<Building2 className="w-6 h-6" />} color="blue" />
+        <StatCard href="/dashboard/materials" title="Materialwarnungen" value={lowMaterials.length} subtitle="Unter Mindestwert" icon={<AlertTriangle className="w-6 h-6" />} color={lowMaterials.length > 0 ? "red" : "green"} />
+        <StatCard href="/dashboard/employees" title="Mitarbeiter" value={totalEmployees} subtitle={`${users.length} gesamt`} icon={<Users className="w-6 h-6" />} color="green" />
+        <StatCard href="/dashboard/work-hours" title="Stunden (Heute)" value={`${totalTodayHours}h`} subtitle={`${totalAllHours}h gesamt`} icon={<Clock className="w-6 h-6" />} color="orange" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
