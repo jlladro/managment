@@ -174,8 +174,11 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
   };
 
   const updateUser = async (id: string, data: Partial<Employee>) => {
+    const existing = db.users.find(u => u.id === id);
+    const updatedUser = existing ? { ...existing, ...data } : { id, ...data };
+    
     updateLocal(prev => ({ ...prev, users: prev.users.map(u => u.id === id ? { ...u, ...data } : u) }));
-    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'users', data: { id, ...data } }) });
+    await fetch('/api/db', { method: 'POST', body: JSON.stringify({ table: 'users', data: updatedUser }) });
   };
 
   const deleteUser = async (id: string) => {
