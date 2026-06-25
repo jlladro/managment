@@ -16,7 +16,13 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "HK Management",
   description: "Trocken- und Innenausbau Management System",
-  manifest: "/manifest.json?v=3",
+  manifest: "/manifest.json?v=4",
+  icons: {
+    icon: "/icon-512x512.png",
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
