@@ -18,6 +18,14 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!isAuthenticated) {
+      try {
+        const isEmployee = localStorage.getItem("baustellen_employee_name");
+        if (isEmployee) {
+          router.replace("/mitarbeiter/home");
+          return;
+        }
+      } catch (e) {}
+      
       router.replace("/login");
     }
   }, [isAuthenticated, router]);
