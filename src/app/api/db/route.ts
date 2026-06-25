@@ -14,36 +14,33 @@ webpush.setVapidDetails(
   '6b2e8orIgCizFEw272OziFG3mMEBbjBQ9vv6-jeHGbU'
 )
 
-async function triggerPush(title: string, body: string, url: string = '/dashboard') {
+async function triggerPush(title: string, body: string, url: string = '/dashboard'): Promise<number> {
   console.log(`Push Triggered: ${title} - ${body}`);
+  let count = 0;
   try {
     // Während der Testphase: Suche ALLE Benutzer, nicht nur Chef
     const { data: users, error } = await supabase.from('users').select('*');
     if (error) console.error("Error fetching chefs for push:", error);
     
-    console.log(`Found ${users?.length || 0} users for push.`);
-    
     if (users) {
       for (const user of users) {
         if (user.metadata?.pushSubscription) {
-          console.log(`Sending push to ${user.name}...`);
           try {
             await webpush.sendNotification(
               user.metadata.pushSubscription,
               JSON.stringify({ title, body, url })
             );
-            console.log(`Push sent successfully to ${user.name}`);
+            count++;
           } catch (err: any) {
             console.error("Push failed for user", user.name, err.statusCode, err.message);
           }
-        } else {
-          console.log(`User ${user.name} has no push subscription.`);
         }
       }
     }
   } catch (e) {
     console.error("General Push Error", e);
   }
+  return count;
 }
 
 export async function GET() {
@@ -72,15 +69,16 @@ export async function POST(req: Request) {
     }
 
     // PUSH LOGIC
+    let pushCount = 0;
     if (table === 'messages' && (!data.id.includes('msg_') || data.id.includes('test_'))) { // Neue Rechnungen oder Test
-       await triggerPush(data.title || "Neue Nachricht", data.body || "", "/dashboard/invoices");
+       pushCount = await triggerPush(data.title || "Neue Nachricht", data.body || "", "/dashboard/invoices");
     } else if (table === 'work_hours') {
-       await triggerPush("Neuer Tagesbericht", `${data.employeeName} hat gebucht`, "/dashboard/reports");
+       pushCount = await triggerPush("Neuer Tagesbericht", `${data.employeeName} hat gebucht`, "/dashboard/reports");
     } else if (table === 'materials' && data.quantity <= (data.minimum || 0) && (data.minimum || 0) > 0) {
-       await triggerPush("Material Warnung ⚠️", `${data.name} ist fast leer: nur noch ${data.quantity} ${data.unit} übrig!`, "/dashboard/projects");
+       pushCount = await triggerPush("Material Warnung ⚠️", `${data.name} ist fast leer: nur noch ${data.quantity} ${data.unit} übrig!`, "/dashboard/projects");
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, pushCount });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

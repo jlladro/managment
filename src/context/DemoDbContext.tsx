@@ -191,7 +191,7 @@ export function DemoDbProvider({ children }: { children: ReactNode }) {
        const err = await res.json();
        alert("Fehler beim Senden der Nachricht: " + (err.error || res.statusText));
     }
-    return msg;
+    return await res.json();
   };
 
   const deleteMessage = async (id: string) => {
