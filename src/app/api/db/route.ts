@@ -80,26 +80,37 @@ export async function POST(req: Request) {
        const res = await triggerPush("Bericht", `${data.employeeName}`, "/dashboard/reports");
        pushCount = res.count;
        debug = res.report;
-    } else if (table === 'materials' && data.quantity <= (data.minimum || 0) && (data.minimum || 0) > 0) {
-       // SPAM SCHUTZ: Wir holen das Material um zu sehen wann wir zuletzt gewarnt haben
+    } else if (table === 'projects') {
+       const { data: existingProject } = await supabase.from('projects').select('id').eq('id', data.id).single();
+       if (!existingProject) {
+           await triggerPush("Neue Baustelle! 🏗️", `Projekt: ${data.name} wurde angelegt.`, "/mitarbeiter/home");
+       }
+    } else if (table === 'materials') {
+       // SPAM SCHUTZ für ALLE Material-Änderungen
        const { data: existingMaterial } = await supabase.from('materials').select('last_warned_at').eq('id', data.id).single();
        
        const lastWarned = existingMaterial?.last_warned_at ? new Date(existingMaterial.last_warned_at).getTime() : 0;
        const now = Date.now();
        
-       // Nur warnen wenn die letzte Warnung länger als 60 Sekunden her ist
+       // Warnen/Informieren wenn die letzte Nachricht länger als 60 Sekunden her ist
        if (now - lastWarned > 60000) {
-         const diff = (data.minimum || 0) - data.quantity;
-         const missingText = diff === 0 ? "Mindestmenge erreicht" : `${diff} ${data.unit || ''} zu wenig`;
+         let title = "Material Update 📦";
+         let bodyText = `${data.name} aktualisiert. Aktuell: ${data.quantity} ${data.unit || ''}`;
          
-         // 5 Sekunden warten damit der Mitarbeiter fertig tippen kann
+         const lowWarning = data.quantity <= (data.minimum || 0) && (data.minimum || 0) > 0;
+         
+         if (lowWarning) {
+            const diff = (data.minimum || 0) - data.quantity;
+            const missingText = diff === 0 ? "Mindestmenge erreicht" : `${diff} ${data.unit || ''} zu wenig`;
+            title = "Material-Warnung! ⚠️";
+            bodyText = `${data.name}: ${missingText}! (Aktuell: ${data.quantity})`;
+         } else if (!existingMaterial) {
+            title = "Neues Material hinzugefügt! ✨";
+         }
+         
          await new Promise(resolve => setTimeout(resolve, 5000));
          
-         const res = await triggerPush(
-           "Material-Warnung! ⚠️", 
-           `${data.name}: ${missingText}! (Aktuell: ${data.quantity})`, 
-           "/dashboard/projects"
-         );
+         const res = await triggerPush(title, bodyText, "/mitarbeiter/home");
          
          // Zeitstempel aktualisieren
          await supabase.from('materials').update({ last_warned_at: new Date().toISOString() }).eq('id', data.id);

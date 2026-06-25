@@ -2,6 +2,7 @@
 
 import { ReactNode } from "react";
 import { EmployeeProvider } from "@/context/EmployeeContext";
+import EmployeePushManager from "@/components/EmployeePushManager";
 
 export default function MitarbeiterLayout({ children }: { children: ReactNode }) {
   return (
@@ -13,6 +14,7 @@ export default function MitarbeiterLayout({ children }: { children: ReactNode })
             {children}
           </div>
         </div>
+        <EmployeePushManager />
       </div>
     </EmployeeProvider>
   );
