@@ -17,26 +17,27 @@ webpush.setVapidDetails(
 async function triggerPush(title: string, body: string, url: string = '/dashboard') {
   console.log(`Push Triggered: ${title} - ${body}`);
   try {
-    const { data: chefs, error } = await supabase.from('users').select('*').eq('role', 'chef');
+    // Während der Testphase: Suche ALLE Benutzer, nicht nur Chef
+    const { data: users, error } = await supabase.from('users').select('*');
     if (error) console.error("Error fetching chefs for push:", error);
     
-    console.log(`Found ${chefs?.length || 0} chefs for push.`);
+    console.log(`Found ${users?.length || 0} users for push.`);
     
-    if (chefs) {
-      for (const chef of chefs) {
-        if (chef.metadata?.pushSubscription) {
-          console.log(`Sending push to ${chef.name}...`);
+    if (users) {
+      for (const user of users) {
+        if (user.metadata?.pushSubscription) {
+          console.log(`Sending push to ${user.name}...`);
           try {
             await webpush.sendNotification(
-              chef.metadata.pushSubscription,
+              user.metadata.pushSubscription,
               JSON.stringify({ title, body, url })
             );
-            console.log(`Push sent successfully to ${chef.name}`);
+            console.log(`Push sent successfully to ${user.name}`);
           } catch (err: any) {
-            console.error("Push failed for user", chef.name, err.statusCode, err.message);
+            console.error("Push failed for user", user.name, err.statusCode, err.message);
           }
         } else {
-          console.log(`Chef ${chef.name} has no push subscription.`);
+          console.log(`User ${user.name} has no push subscription.`);
         }
       }
     }
