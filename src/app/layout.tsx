@@ -14,13 +14,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Baustellen Dashboard",
-  description: "Internes Baustellen-Management-System",
+  title: "HK Management",
+  description: "Trocken- und Innenausbau Management System",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Baustellen",
+    title: "HK",
   },
 };
 
