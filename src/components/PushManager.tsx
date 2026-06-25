@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Bell, BellOff, Loader2, Send, AlertTriangle } from 'lucide-react';
+import { Bell, Loader2, AlertTriangle } from 'lucide-react';
 import { useDemoDb } from '@/context/DemoDbContext';
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -18,9 +18,7 @@ function urlBase64ToUint8Array(base64String: string) {
 export default function PushManager() {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [loading, setLoading] = useState(false);
-  const [testing, setTesting] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
-  const demoDb = useDemoDb();
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -47,16 +45,14 @@ export default function PushManager() {
           applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
         });
 
-        // HÄRTERER SPEICHER-VERSUCH
         const userData = {
-          id: "chef_primary", // Wir nutzen eine feste ID für dich
+          id: "chef_primary",
           name: "BOSS",
           active: true,
           role: "chef" as const,
           metadata: { pushSubscription: subscription }
         };
 
-        // Wir nutzen POST direkt um Fehler zu sehen
         const res = await fetch('/api/db', {
           method: 'POST',
           body: JSON.stringify({ table: 'users', data: userData })
@@ -64,45 +60,28 @@ export default function PushManager() {
 
         if (!res.ok) {
           const errData = await res.json();
-          throw new Error(`Konnte dich nicht in DB speichern: ${errData.error}`);
+          throw new Error(`DB Fehler: ${errData.error}`);
         }
         
-        alert("GEIL! Du bist jetzt registriert. ✅\nDein Handy wurde als BOSS gespeichert.");
-        // Wir refreshen die lokale DB
+        alert("Benachrichtigungen sind aktiv! ✅");
         window.location.reload(); 
       }
     } catch (e: any) {
-      console.error("Push Error", e);
       setDbError(e.message);
-      alert("FEHLER: " + e.message);
+      alert("Fehler: " + e.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const testPush = async () => {
-    setTesting(true);
-    try {
-      await demoDb.addMessage({
-        title: "Test-Signal 🔔",
-        body: "Die Verbindung zum Chef-Handy steht! 🎉",
-        targetType: "employee",
-        targetProjectIds: [],
-        id: "test_" + Date.now()
-      });
-      alert("Test-Signal gesendet! 🎉\nDeine Benachrichtigungen sind jetzt scharf geschaltet.");
-    } catch (e: any) {
-      alert("Test fehlgeschlagen: " + e.message);
-    } finally {
-      setTesting(false);
-    }
-  };
-
+  // Wenn alles erlaubt ist, zeigen wir gar nichts mehr an (aufgeräumt)
+  if (permission === 'granted' && !dbError) return null;
+  // Wenn abgelehnt wurde ohne Fehler, auch weg
   if (permission === 'denied' && !dbError) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-[60] animate-in slide-in-from-bottom-10">
-      <div className="bg-[#12161F] border border-orange-500/30 p-6 rounded-[32px] shadow-2xl flex flex-col items-center text-center max-w-[280px] backdrop-blur-md">
+      <div className="bg-[#12161F]/90 border border-orange-500/30 p-6 rounded-[32px] shadow-2xl flex flex-col items-center text-center max-w-[280px] backdrop-blur-md">
         
         {dbError && (
           <div className="bg-red-500/10 p-3 rounded-xl mb-4 flex items-center gap-2 border border-red-500/20">
@@ -112,33 +91,28 @@ export default function PushManager() {
         )}
 
         <div className="w-14 h-14 bg-orange-500/10 rounded-2xl flex items-center justify-center mb-4">
-           {permission === 'granted' ? <Bell className="w-7 h-7 text-green-500" /> : <Bell className="w-7 h-7 text-orange-500" />}
+           <Bell className="w-7 h-7 text-orange-500" />
         </div>
         
-        {permission === 'granted' ? (
-          <>
-            <h3 className="text-white font-bold mb-2">Push Aktiv ✅</h3>
-            <button 
-              onClick={testPush}
-              disabled={testing}
-              className="w-full bg-green-500 text-white py-4 rounded-2xl font-bold active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
-            >
-              {testing ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-4 h-4" /> TEST-ALARM</>}
-            </button>
-            <button onClick={requestPermission} className="mt-3 text-[9px] text-slate-600 underline">Neu Registrieren</button>
-          </>
-        ) : (
-          <>
-            <h3 className="text-white font-bold mb-2">Push-Service</h3>
-            <button 
-              onClick={requestPermission}
-              disabled={loading}
-              className="w-full bg-orange-500 text-white py-4 rounded-2xl font-bold active:scale-95 shadow-lg shadow-orange-500/20"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "JETZT AKTIVIEREN"}
-            </button>
-          </>
-        )}
+        <h3 className="text-white font-bold mb-2">Push-Mitteilungen</h3>
+        <p className="text-slate-500 text-xs mb-5 leading-relaxed">
+          Möchtest du Alarme direkt auf dein Handy bekommen?
+        </p>
+        
+        <button 
+          onClick={requestPermission}
+          disabled={loading}
+          className="w-full bg-orange-500 text-white py-4 rounded-2xl font-bold active:scale-95 shadow-lg shadow-orange-500/20"
+        >
+          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "JETZT AKTIVIEREN"}
+        </button>
+
+        <button 
+          onClick={() => setPermission('denied')}
+          className="mt-4 text-[10px] font-bold text-slate-600 uppercase tracking-widest hover:text-slate-400"
+        >
+          Später
+        </button>
       </div>
     </div>
   );
